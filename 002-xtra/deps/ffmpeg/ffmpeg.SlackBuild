@@ -3,7 +3,7 @@
 PRGNAM=ffmpeg
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,7 +12,7 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-major_version=$(curl -s $REPOSITORY/l/ | grep -o 'ffmpeg[^< ]*' | cut -d '-' -f 2 | head -n1)
+major_version=$(curl -s $REPOSITORY/l/ | grep -o 'ffmpeg[^< ]*' | cut -d '-' -f 2 | cut -d '.' -f 1 | head -n1)
 filename=$(curl -s https://ffmpeg.org/releases/ | grep ffmpeg-${major_version} | cut -d '>' -f 2 | grep .xz\" | cut -d \" -f 2 | sort -V -r | head -1)
 
 wget https://ffmpeg.org/releases/${filename}
@@ -22,25 +22,28 @@ tar xf $PRGNAM-$VERSION.tar.?z
 cd $PRGNAM-$VERSION
 
 sed -i "s|enabled extra_warnings |#enabled extra_warnings |g" ./configure
-patch -p0 < $CWD/add-av_stream_get_first_dts-for-chromium.patch
+patch -p1 < $CWD/add-av_stream_get_first_dts-for-chromium.patch
 
+# disabling 'opus' because it's buggy and its brother libopus (enabled) does the job
 CFLAGS="$GCC_CFLAGS -ffat-lto-objects -Wno-error=int-conversion -Wno-error=incompatible-pointer-types" \
 LDFLAGS="$LLDFLAGS" \
 ./configure \
 	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
-	--shlibdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
+	--shlibdir=/usr/lib${SYSTEM_BITS} \
 	--disable-debug \
 	--disable-static \
 	--disable-ffplay \
 	--disable-doc \
 	--disable-htmlpages \
 	--disable-manpages \
+	--disable-decoder=opus \
 	--disable-podpages \
 	--disable-txtpages \
 	--enable-shared \
 	--enable-gpl \
 	--enable-version3 \
+	--enable-hardcoded-tables \
 	--enable-nvdec \
 	--enable-nvenc \
 	--enable-gnutls \
@@ -81,9 +84,9 @@ LDFLAGS="$LLDFLAGS" \
 	--enable-libplacebo \
 	--enable-lcms2
 
-make -j${NUMBERTHREADS} install DESTDIR=$PKG
+make -j${NUMBER_THREADS} install DESTDIR=$PKG
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 rm -R $PKG/usr/share/ffmpeg/examples
 
@@ -91,4 +94,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

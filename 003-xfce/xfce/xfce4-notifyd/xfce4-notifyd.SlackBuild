@@ -3,7 +3,7 @@
 PRGNAM=xfce4-notifyd
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -21,23 +21,28 @@ cd $PRGNAM-$DOWNLOADVERSION
 
 sed -i "s|subdir('tests')|#subdir('tests')|g" meson.build
 
-mkdir build && cd build
+# Guard 5 signal connections against NULL log (fails when log dir path is a stale file)
+sed -i '/g_signal_connect(xndlog->log, "row-added"/i\        if (xndlog->log != NULL) {' xfce4-notifyd/xfce-notify-daemon-log.c
+sed -i '/G_CALLBACK(log_cleared), xndlog);/a\        }' xfce4-notifyd/xfce-notify-daemon-log.c
+
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
-	-Dtests=false
+	-Dtests=false \
+	-Ddbus-start-daemon=true
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

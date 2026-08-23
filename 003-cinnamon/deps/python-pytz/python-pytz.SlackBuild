@@ -1,9 +1,11 @@
 #!/bin/bash
 
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
 PRGNAM=python-pytz
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -15,7 +17,7 @@ cd $TMP
 repository="stub42"
 project="pytz"
 
-VERSION=$(curl -s https://github.com/${repository}/${project}/tags/ | grep "/${repository}/${project}/releases/tag/" | grep -oP "(?<=/${repository}/${project}/releases/tag/)[^\"]+" | cut -d "_" -f 2 | sort -Vr | head -n 1)
+VERSION=$(get_latest_version_tag_from_github ${repository} ${project} | cut -d "_" -f 2)
 
 wget -c https://github.com/$repository/$project/releases/download/release_$VERSION/pytz-$VERSION.tar.gz
 
@@ -28,4 +30,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

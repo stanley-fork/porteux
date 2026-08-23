@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=mpv
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,19 +14,19 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "mpv-player" ${PRGNAM})
+info=$(download_latest_from_github "mpv-player" ${PRGNAM})
 VERSION=${info#* }
 
 tar xf $PRGNAM-$VERSION.tar.?z*
 cd $PRGNAM-$VERSION
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CFLAGS="$CLANG_CFLAGS" \
 LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--sysconfdir=/etc \
 	-Dbuildtype=release \
 	-Dmanpage-build=disabled \
@@ -39,11 +39,12 @@ meson setup \
 	-Dshaderc=disabled \
 	-Dlua=luajit \
 	-Dpipewire=auto \
-	-Dcaca=disabled
+	-Dcaca=disabled \
+	-Dtests=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 rm -fr $PKG/usr/share/bash-completion
 rm -fr $PKG/usr/share/doc
 rm -fr $PKG/usr/share/fish
@@ -56,4 +57,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

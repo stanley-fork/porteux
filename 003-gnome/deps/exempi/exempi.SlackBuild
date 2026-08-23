@@ -3,7 +3,7 @@
 PRGNAM=exempi
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,29 +12,28 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(curl -s https://gitlab.freedesktop.org/libopenraw/${PRGNAM}/-/tags | grep "/releases" | cut -d '>' -f 2 | cut -d '<' -f 1 | grep -viE 'alpha|beta|rc' | cut -d ' ' -f 1 | sort -Vr | head -1)
-wget https://gitlab.freedesktop.org/libopenraw/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${VERSION}.tar.gz
-
-tar xf $PRGNAM-$VERSION.tar.?z*
-cd $PRGNAM-$VERSION
+wget https://gitlab.freedesktop.org/libopenraw/${PRGNAM}/-/archive/main/${PRGNAM}-main.tar.gz
+tar xf ${PRGNAM}-main.tar.?z*
+cd ${PRGNAM}-main
+VERSION=$(date -r . +%Y%m%d)
 
 CFLAGS="$GCC_CFLAGS" \
 CXXFLAGS="$GCC_CXXFLAGS" \
 ./autogen.sh \
 	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--localstatedir=/var \
 	--sysconfdir=/etc \
 	--disable-static \
 	--enable-samples=no \
 	--enable-unittest=no
 
-make -j${NUMBERTHREADS} install-strip DESTDIR=$PKG
+make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=pcmanfm-qt
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/${PRGNAM}
+TMP=$MODULE_PATH/${PRGNAM}
 PKG=$TMP/package-${PRGNAM}
 
 set -e
@@ -14,26 +14,28 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "lxqt" $PRGNAM)
+info=$(download_latest_from_github "lxqt" $PRGNAM)
 VERSION=${info#* }
 
 tar xf $PRGNAM-$VERSION.tar.?z*
 cd $PRGNAM-$VERSION
 
-patch -p0 < $CWD/sane-search-defaults.patch
+patch -p1 < $CWD/sane-search-defaults.patch
 
 cmake -B build -S . \
 	-DCMAKE_BUILD_TYPE=release \
 	-DCMAKE_CXX_FLAGS="$GCC_CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX=/usr \
-	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEMBITS}
+	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEM_BITS}
 
-make -C build -j${NUMBERTHREADS} DESTDIR="$PKG" install
+make -C build -j${NUMBER_THREADS} DESTDIR="$PKG" install
 
 rm $PKG/usr/share/icons/hicolor/scalable/apps/pcmanfm-qt.svg
+
+sed -i "s|Icon=pcmanfm-qt|Icon=system-file-manager|g" $PKG/usr/share/applications/pcmanfm-qt.desktop
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

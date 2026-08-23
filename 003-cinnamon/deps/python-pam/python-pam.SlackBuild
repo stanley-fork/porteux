@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=python-pam
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,17 +14,14 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "FirefighterBlu3" ${PRGNAM})
-VERSION=${info#* }
+VERSION=$(download_master_from_github FirefighterBlu3 python-pam main) || exit 1
+cd python-pam-main || exit 1
 
-tar xf $PRGNAM-$VERSION.tar.?z
-cd $PRGNAM-$VERSION
-
-python -m build --wheel --no-isolation
+python -m build --wheel
 python -m installer --destdir "$PKG" dist/*.whl
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

@@ -3,7 +3,7 @@
 PRGNAM=libxfce4util
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -13,7 +13,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -Ev '^xfce-|pre' | sort -Vr | {
-	if [[ "$ALLOWTEST" == "yes" ]]; then
+	if [[ "$ALLOW_TEST" == "yes" ]]; then
 		head -1
 	else
 		while read -r version; do
@@ -34,25 +34,28 @@ cd $PRGNAM-$DOWNLOADVERSION
 sed -i "s|subdir('docs'|#subdir('docs'|g" meson.build
 
 for i in $CWD/*.patch; do
-	patch -p0 < $i;
+	patch -p1 < $i
 done
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
-	--localstatedir=/var 
+	--localstatedir=/var \
+	-Dintrospection=false \
+	-Dvala=disabled \
+	-Dgtk-doc=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

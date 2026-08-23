@@ -3,7 +3,7 @@
 PRGNAM=xpdf
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -27,16 +27,16 @@ cmake -B build -S . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_C_FLAGS="$GCC_CFLAGS -ffat-lto-objects" \
 	-DCMAKE_CXX_FLAGS="$GCC_CXXFLAGS -ffat-lto-objects" \
-	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEMBITS} \
+	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEM_BITS} \
 	-DCMAKE_INSTALL_PREFIX=/usr \
 	-DSYSTEM_XPDFRC=/etc/xpdfrc \
 	-DMULTITHREADED=ON \
 	-DXPDFWIDGET_PRINTING=ON \
 	-DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
-make -C build -j${NUMBERTHREADS} install DESTDIR=$PKG
+make -C build -j${NUMBER_THREADS} install DESTDIR=$PKG
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 # Remove these since we use the poppler ones
 rm $PKG/usr/bin/pdfdetach
@@ -52,9 +52,13 @@ rm $PKG/usr/bin/pdffonts
 mkdir -p $PKG/usr/share/{applications,pixmaps}
 cat $CWD/xpdf.desktop > $PKG/usr/share/applications/xpdf.desktop
 cat $CWD/xpdfIcon.xpm > $PKG/usr/share/pixmaps/xpdfIcon.xpm
+sed -i "s|Icon=xpdfIcon|Icon=xpdf|g" $PKG/usr/share/applications/xpdf.desktop
+
+mkdir -p $PKG/etc
+cat doc/sample-xpdfrc > $PKG/etc/xpdfrc
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

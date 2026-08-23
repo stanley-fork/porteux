@@ -2,9 +2,11 @@
 
 Latest release direct link: https://github.com/porteux/porteux/releases/latest
 
+Or at Slackware.uk mirror: [https://slackware.uk/porteux/](https://slackware.uk/porteux/)
+
 ## About
 
-PorteuX is a Linux distro based on Slackware, inspired by Slax and Porteus and available to the public for free. Its main goal is to be super fast, small, portable, modular and immutable (if the user wants so).
+PorteuX is a Linux distro based on Slackware, inspired by Slax and Porteus and available to the public for free under GPL. Its main goal is to be super fast, small, portable, modular and immutable (if the user wants so).
 
 It's unique in many ways; not just a repackaging of programs on top of Slackware. For a list of its highlights, access the [Main Features](https://github.com/porteux/porteux/wiki/Main-Features) wiki page.
 
@@ -28,7 +30,7 @@ PorteuX is a modular system so it doesn't require a normal setup/installer. You 
 
 To use PorteuX in a language other than English, download the multilanguage package and use the PorteuX Language Switcher application to choose the desired language.
 
-To read Asian characters, download and activate the [notoserifcjk-regular.xzm](https://github.com/porteux/porteux/raw/main/common/notoserifcjk-regular.xzm) module. Some PDFs may also require `poppler-data` package, which can be downloaded via `getpkg` command.
+To read Asian characters, download and activate the [notoserifcjk-regular.xzm](https://github.com/porteux/porteux/raw/main/common/notoserifcjk-regular.xzm) module. Some PDFs may also require `poppler-data` package, which can be downloaded via `getpkg` command (e.g. `getpkg -m poppler-data`).
 
 To run Windows applications inside PorteuX, you can find both Wine and Multilib Lite XZM modules in the App Store. It's recommended to have these 2 modules in `/porteux/optional` and activate them only when needed.
 
@@ -80,7 +82,7 @@ This only needs to be done once, as these modules will be activated automaticall
 
 PorteuX can be built in a live session of Slackware 64-bit or PorteuX 64-bit. At the moment, the main scripts do not generate ISOs, but only the XZM files for each module (000-kernel, 001-core, 002-gui, 002-xtra, 003-desktop-environment, etc).
 
-To build PorteuX, run the `createModule.sh` script as root, in the exact folder order as described: <br />
+To build PorteuX, run the `create-module.sh` script as root, in the exact folder order as described: <br />
 1. 000-kernel<br />
 2. 001-core<br />
 3. 002-gui<br />
@@ -109,7 +111,7 @@ arleson (core team)<br />
 theUtopian (core team)<br />
 blaze (@porteus)<br />
 brokenman (@porteus)<br />
-luckyCyborg (@slackware)<br />
+darren tadgy (@slackware.uk)<br />
 nater1983 (@gfs)<br />
 ncmprhnsbl (@porteus)<br />
 neko (@porteus)<br />

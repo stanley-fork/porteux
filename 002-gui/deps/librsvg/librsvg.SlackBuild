@@ -3,7 +3,7 @@
 PRGNAM=librsvg
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,8 +14,9 @@ cd $TMP
 
 VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -viE 'alpha|beta|rc|gtk' | sort -Vr | {
 	while read -r version; do
+		minor=$(echo "$version" | cut -d. -f2)
 		patchVersion=$(echo "$version" | rev | cut -d. -f1 | rev)
-		if [[ $patchVersion != "9"* ]]; then
+		if (( minor % 2 == 0 )) && [[ $patchVersion != "9"* ]]; then
 			echo "$version"
 			break
 		fi
@@ -26,7 +27,7 @@ wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${V
 tar xf $PRGNAM-$VERSION.tar.?z*
 cd $PRGNAM-$VERSION
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CFLAGS="$CLANG_CFLAGS" \
 RUSTFLAGS="${RUSTFLAGS/-Clto=fat/}" \
@@ -34,7 +35,7 @@ LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
@@ -42,14 +43,15 @@ meson setup \
 	-Dtests=false \
 	-Ddocs=disabled \
 	-Davif=disabled \
-	-Drsvg-convert=disabled
+	-Drsvg-convert=disabled \
+	-Dvala=disabled
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

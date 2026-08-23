@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=cinnamon-settings-daemon
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,30 +14,38 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "linuxmint" ${PRGNAM} "${TESTRELEASES}")
+info=$(download_latest_from_github "linuxmint" ${PRGNAM} "${TEST_RELEASES}")
 VERSION=${info#* }
 
 tar xf $PRGNAM-$VERSION*.tar.?z
 cd $PRGNAM-$VERSION*/
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS -Wno-incompatible-pointer-types" \
 meson setup \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--localstatedir=/var \
 	--prefix=/usr \
 	--sysconfdir=/etc \
 	-Duse_polkit=enabled \
 	-Duse_logind=enabled \
-	-Duse_cups=disabled
+	-Duse_cups=disabled \
+	-Duse_smartcard=disabled \
+	-Duse_color=disabled \
+	-Duse_wacom=disabled \
+	-Denable_debug=false \
+	-Dgenerate_tz_coords=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
+
+# disable service 
+echo "Hidden=true" >> $PKG/etc/xdg/autostart/cinnamon-settings-daemon-color.desktop
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

@@ -3,7 +3,7 @@
 PRGNAM=gnome-backgrounds
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,22 +12,23 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | eval "${TESTRELEASES}" | head -1)
+VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | eval "${TEST_RELEASES:-sort -Vr}" | head -1)
 wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${VERSION}.tar.gz
 [ ! -s ${PRGNAM}-${VERSION}.tar.gz ] && wget https://github.com/GNOME/${PRGNAM}/archive/refs/tags/$VERSION.tar.gz -O $PRGNAM-$VERSION.tar.gz
 
 tar xf $PRGNAM-$VERSION.tar.?z*
 cd $PRGNAM-$VERSION
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
+	 --buildtype=release \
 	 --prefix=/usr \
-	 --libdir=/usr/lib${SYSTEMBITS} \
+	 --libdir=/usr/lib${SYSTEM_BITS} \
 	 --sysconfdir=/etc \
 	 --localstatedir=/var
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
 find $PKG/usr/share/backgrounds/gnome/ -mindepth 1 -maxdepth 1 ! \( -name "adwaita*" \) -exec rm -rf '{}' \; 2>/dev/null
 find $PKG/usr/share/gnome-background-properties/ -mindepth 1 -maxdepth 1 ! \( -name "adwaita*" \) -exec rm -rf '{}' \; 2>/dev/null
@@ -36,4 +37,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

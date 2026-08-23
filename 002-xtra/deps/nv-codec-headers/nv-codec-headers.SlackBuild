@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=nv-codec-headers
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,13 +14,10 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "FFmpeg" ${PRGNAM})
-VERSION=${info#* }
+VERSION=$(download_master_from_github FFmpeg nv-codec-headers) || exit 1
+cd nv-codec-headers-master || exit 1
 
-tar xf ${PRGNAM}-$VERSION.tar.?z
-cd ${PRGNAM}-$VERSION
-
-make -j${NUMBERTHREADS} PREFIX=/usr LIBDIR=lib${SYSTEMBITS} DESTDIR=$PKG install
+make -j${NUMBER_THREADS} PREFIX=/usr LIBDIR=lib${SYSTEM_BITS} DESTDIR=$PKG install
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-noarch-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-noarch-1_porteux.txz

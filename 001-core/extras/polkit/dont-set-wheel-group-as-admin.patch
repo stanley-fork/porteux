@@ -1,0 +1,10 @@
+diff --git a/src/polkitbackend/50-default.rules.in b/src/polkitbackend/50-default.rules.in
+--- a/src/polkitbackend/50-default.rules.in
++++ b/src/polkitbackend/50-default.rules.in
+@@ -8,5 +8,5 @@
+ // about configuring polkit.
+ 
+ polkit.addAdminRule(function(action, subject) {
+-    return ["unix-group:@PRIVILEGED_GROUP@"];
++    return ["unix-user:root"];
+ });

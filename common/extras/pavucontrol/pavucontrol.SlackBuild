@@ -1,0 +1,47 @@
+#!/bin/bash
+
+PRGNAM=pavucontrol
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+VERSION="5.0"
+COMMIT=c330506815f78f77f6685cb40749679eae789d63
+wget https://gitlab.freedesktop.org/pulseaudio/${PRGNAM}/-/archive/${COMMIT}/${PRGNAM}-${COMMIT}.tar.gz || exit 1
+tar xf ${PRGNAM}-${COMMIT}.tar.gz || exit 1
+cd ${PRGNAM}-${COMMIT} || exit 1
+
+sed -i "s|subdir('doc')|#subdir('doc')|g" meson.build
+# fix version not showing when running 'pavucontrol --version'
+sed -i 's|printf("%s\\n", PACKAGE_STRING);|printf("%s %s\\n", PACKAGE_STRING, PACKAGE_VERSION);|g' src/pavuapplication.cc
+
+mkdir meson-build && cd meson-build
+CFLAGS="$GCC_CFLAGS" \
+CXXFLAGS="$GCC_CXXFLAGS" \
+meson setup \
+	--prefix=/usr \
+	--buildtype=release \
+	--libdir=/usr/lib${SYSTEM_BITS} \
+	--libexecdir=/usr/libexec \
+	--sysconfdir=/etc \
+	--localstatedir=/var \
+	-Dlynx=false
+
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+
+find $PKG -type f -name "*.la" -delete
+
+sed -i "s|;Settings;|;|g" $PKG/usr/share/applications/pavucontrol.desktop
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

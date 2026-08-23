@@ -1,0 +1,42 @@
+#!/bin/bash
+
+PRGNAM=libnma
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/main/${PRGNAM}-main.tar.gz
+tar xf ${PRGNAM}-main.tar.?z*
+cd ${PRGNAM}-main
+VERSION=$(date -r . +%Y%m%d)
+
+mkdir meson-build && cd meson-build
+CFLAGS="$GCC_CFLAGS" \
+meson setup \
+	--buildtype=release \
+	--prefix=/usr \
+	--libdir=/usr/lib${SYSTEM_BITS} \
+	--sysconfdir=/etc \
+	--localstatedir=/var \
+	-Dlibnma_gtk4=false \
+	-Dgtk_doc=false \
+	-Dvapi=false \
+	-Diso_codes=false \
+	-Dmobile_broadband_provider_info=false
+
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+
+find $PKG -type f -name "*.la" -delete
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

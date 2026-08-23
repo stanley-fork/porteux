@@ -1,9 +1,11 @@
 #!/bin/bash
 
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
 PRGNAM=libjxl
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,10 +14,8 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-wget https://github.com/${PRGNAM}/${PRGNAM}/archive/refs/heads/master.tar.gz -O ${PRGNAM}.tar.gz
-tar xf ${PRGNAM}.tar.?z
-cd ${PRGNAM}-main
-VERSION=$(date -r . +%Y%m%d)
+VERSION=$(download_master_from_github libjxl libjxl main) || exit 1
+cd libjxl-main || exit 1
 
 # skipping not used deps download
 sed -i "s|download_github testdata libjxl/testdata||g" deps.sh
@@ -37,7 +37,7 @@ cmake -B build -S . \
 	-DBUNDLE_LIBPNG_DEFAULT='NO' \
 	-DCMAKE_BUILD_TYPE='Release' \
 	-DCMAKE_INSTALL_PREFIX='/usr' \
-	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEMBITS} \
+	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEM_BITS} \
 	-DCMAKE_INSTALL_BINDIR=/usr/bin \
 	-DBUILD_SHARED_LIBS=true \
 	-DJPEGXL_ENABLE_JNI=false \
@@ -57,19 +57,18 @@ cmake -B build -S . \
 	-DJPEGXL_FORCE_SYSTEM_HWY=false \
 	-DJPEGXL_FORCE_SYSTEM_LCMS2=false \
 	-DJPEGXL_ENABLE_SJPEG=false \
-	-DJPEGXL_ENABLE_PLUGIN_GIMP210=false \
 	-DJPEGXL_STATIC=false \
 	-DCMAKE_C_COMPILER=clang \
 	-DCMAKE_CXX_COMPILER=clang++
 
-DESTDIR=$PKG ninja -C build -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -C build -j${NUMBER_THREADS} install
 
 find $PKG -type f -name "*.a" -exec rm -f {} \;
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 find $PKG -name perllocal.pod -o -name ".packlist" -o -name "*.bs" | xargs rm -f || true
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

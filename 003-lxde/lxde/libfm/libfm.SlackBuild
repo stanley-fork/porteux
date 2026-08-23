@@ -1,9 +1,11 @@
 #!/bin/bash
 
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
 PRGNAM=libfm
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,9 +14,14 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-git clone https://github.com/lxde/${PRGNAM}
-cd ${PRGNAM}
-VERSION=`git describe | cut -d- -f1`
+download_master_from_github lxde ${PRGNAM} || exit 1
+cd ${PRGNAM}-master || exit 1
+
+VERSION=$(grep -m1 -oP 'AC_INIT\(\s*\[?[^],]+\]?\s*,\s*\[?\K[^],\]]+' configure.ac)
+if [ -z "$VERSION" ]; then
+	echo "Error: cannot detect $PRGNAM version."
+	exit 1
+fi
 
 sed -i "s|g_file_info_get_size(inf)|g_file_info_get_attribute_uint64 (inf, G_FILE_ATTRIBUTE_STANDARD_SIZE)|g" src/base/fm-file-info.c
 sed -i "s|g_file_info_get_size(inf)|g_file_info_get_attribute_uint64 (inf, G_FILE_ATTRIBUTE_STANDARD_SIZE)|g" src/job/fm-deep-count-job.c
@@ -42,19 +49,20 @@ sed -i "s|g_file_info_get_edit_name(inf)|g_file_info_get_attribute_byte_string (
 CFLAGS="$GCC_CFLAGS -ffat-lto-objects -Wno-error=incompatible-pointer-types" \
 ./configure \
 	--prefix=/usr \
-	--libdir=/usr/lib$SYSTEMBITS \
+	--libdir=/usr/lib$SYSTEM_BITS \
 	--localstatedir=/var \
 	--with-gtk=3 \
 	--disable-demo \
+	--disable-gtk-doc \
 	--disable-static \
 	--disable-man
 
-make -j${NUMBERTHREADS} install-strip DESTDIR=$PKG
+make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

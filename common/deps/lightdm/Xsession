@@ -1,0 +1,53 @@
+#!/bin/sh
+# LightDM wrapper to run sessions
+
+case $SHELL in
+  */bash)
+    [ -z "$BASH" ] && exec $SHELL --login $0 "$@"
+    shopt -q login_shell || exec $SHELL --login $0 "$@"
+    set +o posix
+    ;;
+  */zsh)
+    [ -z "$ZSH_NAME" ] && exec $SHELL --login $0 "$@"
+    [[ -o login ]] || exec $SHELL --login $0 "$@"
+    emulate -R sh
+    ;;
+  */csh|*/tcsh)
+    xsess_tmp=`mktemp /tmp/xsess-env-XXXXXX`
+    $SHELL -c "if (-f /etc/csh.login) source /etc/csh.login; if (-f ~/.login) source ~/.login; /bin/sh -c 'export -p' >! $xsess_tmp"
+    . $xsess_tmp
+    rm -f $xsess_tmp
+    ;;
+  */fish)
+    [ -f /etc/profile ] && . /etc/profile
+    [ -f $HOME/.profile ] && . $HOME/.profile
+    xsess_tmp=`mktemp /tmp/xsess-env-XXXXXX`
+    $SHELL --login -c "/bin/sh -c 'export -p' > $xsess_tmp"
+    . $xsess_tmp
+    rm -f $xsess_tmp
+    ;;
+  *)
+    [ -f /etc/profile ] && . /etc/profile
+    [ -f "$HOME/.profile" ] && . "$HOME/.profile"
+    ;;
+esac
+
+userresources=$HOME/.Xresources
+usermodmap=$HOME/.Xmodmap
+sysresources=/etc/X11/xinit/.Xresources
+sysmodmap=/etc/X11/xinit/.Xmodmap
+
+[ -f $sysresources ] && xrdb -merge $sysresources
+[ -f $sysmodmap ] && xmodmap $sysmodmap
+[ -f $userresources ] && xrdb -merge $userresources
+[ -f $usermodmap ] && xmodmap $usermodmap
+
+case "$*" in
+	*wayland*|*labwc*)
+		exec $@
+		;;
+	*)
+		# xorg sessions in combination with cron only work using dbus-launch
+		exec dbus-launch --sh-syntax --exit-with-session $@
+		;;
+esac

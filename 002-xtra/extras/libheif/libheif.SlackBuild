@@ -1,0 +1,55 @@
+#!/bin/bash
+
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
+PRGNAM=libheif
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+info=$(download_latest_from_github "strukturag" ${PRGNAM})
+VERSION=${info#* }
+
+tar xf $PRGNAM-$VERSION.tar.?z*
+cd $PRGNAM-$VERSION
+
+cmake -B build -S . \
+	-G Ninja \
+	-DCMAKE_C_FLAGS="$GCC_CFLAGS" \
+	-DCMAKE_CXX_FLAGS="$GCC_CXXFLAGS -ffat-lto-objects" \
+	-DCMAKE_INSTALL_PREFIX=/usr \
+	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEM_BITS} \
+	-DWITH_EXAMPLES=OFF \
+	-DWITH_EXAMPLE_HEIF_VIEW=OFF \
+	-DWITH_SvtEnc=OFF \
+	-DWITH_X265=OFF \
+	-DWITH_X264=OFF \
+	-DWITH_AOM_ENCODER=OFF \
+	-DWITH_RAV1E=OFF \
+	-DWITH_JPEG_ENCODER=OFF \
+	-DWITH_OpenJPEG_ENCODER=OFF \
+	-DWITH_OPENJPH_ENCODER=OFF \
+	-DWITH_KVAZAAR=OFF \
+	-DWITH_UVG266=OFF \
+	-DWITH_VVENC=OFF \
+	-DBUILD_TESTING=OFF \
+	--preset=release
+
+DESTDIR=$PKG ninja -C build -j${NUMBER_THREADS} install
+
+find $PKG -type f -name "*.la" -delete
+
+rm -fr $PKG/usr/bin
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

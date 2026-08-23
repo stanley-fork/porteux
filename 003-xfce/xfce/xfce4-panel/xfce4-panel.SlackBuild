@@ -3,7 +3,7 @@
 PRGNAM=xfce4-panel
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -13,7 +13,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -Ev '^xfce-|pre' | sort -Vr | {
-	if [[ "$ALLOWTEST" == "yes" ]]; then
+	if [[ "$ALLOW_TEST" == "yes" ]]; then
 		head -1
 	else
 		while read -r version; do
@@ -25,6 +25,10 @@ DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=a
 		done
 	fi
 })
+if [ -z "$DOWNLOADVERSION" ]; then
+	echo "Error: cannot detect latest $PRGNAM version."
+	exit 1
+fi
 VERSION=$(echo $DOWNLOADVERSION | rev | cut -d '-' -f 1 | rev)
 wget https://gitlab.xfce.org/xfce/${PRGNAM}/-/archive/${DOWNLOADVERSION}/${PRGNAM}-${DOWNLOADVERSION}.tar.gz
 
@@ -36,23 +40,28 @@ sed -i "s|subdir('docs'|#subdir('docs'|g" meson.build
 sed -i "s|define DEFAULT_POPDOWN_DELAY (350)|define DEFAULT_POPDOWN_DELAY (10)|g" panel/panel-window.c
 sed -i "s|define DEFAULT_POPDOWN_SPEED (25)|define DEFAULT_POPDOWN_SPEED (10)|g" panel/panel-window.c
 sed -i "s|define DEFAULT_POPUP_DELAY (225)|define DEFAULT_POPUP_DELAY (10)|g" panel/panel-window.c
+grep -q "define DEFAULT_POPDOWN_DELAY (10)" panel/panel-window.c
+grep -q "define DEFAULT_POPDOWN_SPEED (10)" panel/panel-window.c
+grep -q "define DEFAULT_POPUP_DELAY (10)" panel/panel-window.c
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
-	--localstatedir=/var 
+	--localstatedir=/var \
+	-Dintrospection=false \
+	-Dgtk-doc=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

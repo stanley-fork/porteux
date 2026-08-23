@@ -3,7 +3,7 @@
 PRGNAM=pipewire
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -18,7 +18,7 @@ wget https://gitlab.freedesktop.org/${PRGNAM}/${PRGNAM}/-/archive/${VERSION}/${P
 tar xf $PRGNAM-$VERSION.tar.?z*
 cd $PRGNAM-$VERSION
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CXX=clang++ \
 CFLAGS="$CLANG_CFLAGS -Wno-incompatible-pointer-types-discards-qualifiers" \
@@ -26,7 +26,7 @@ CXXFLAGS="$CLANG_CXXFLAGS" \
 LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--bindir=/usr/bin \
 	--sbindir=/usr/sbin \
@@ -36,6 +36,7 @@ meson setup \
 	--localstatedir=/var \
 	--buildtype=release \
 	-Dman=disabled \
+	-Ddocs=disabled \
 	-Dtests=disabled \
 	-Dexamples=disabled \
 	-Dffmpeg=disabled \
@@ -44,15 +45,15 @@ meson setup \
 	-Dpipewire-jack=disabled \
 	-Dsession-managers=[]
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
-install -Dm755 "$CWD/run-pipewire" $PKG/etc/pipewire/run-pipewire
+install -Dm755 "$CWD/rc.pipewire" $PKG/etc/rc.d/rc.pipewire
 install -Dm644 "$CWD/pipewire.desktop" $PKG/etc/xdg/autostart/pipewire.desktop
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

@@ -1,0 +1,67 @@
+#!/bin/bash
+
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
+PRGNAM=lightdm-gtk-greeter
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+if ! which xdt-csource > /dev/null 2>&1; then
+	DEVTOOLS=xfce4-dev-tools
+	DEVTOOLSVERSION=$(curl -s https://gitlab.xfce.org/xfce/${DEVTOOLS}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -v pre | grep -v 4.21 | sort -Vr | head -1)
+	wget https://gitlab.xfce.org/xfce/${DEVTOOLS}/-/archive/${DEVTOOLSVERSION}/${DEVTOOLS}-${DEVTOOLSVERSION}.tar.gz
+
+	tar xf $DEVTOOLS-$DEVTOOLSVERSION.tar.?z*
+	cd $DEVTOOLS-$DEVTOOLSVERSION
+
+	CFLAGS="$GCC_CFLAGS" \
+	./autogen.sh \
+		--prefix=/usr \
+		--libdir=/usr/lib${SYSTEM_BITS} \
+		--sysconfdir=/etc \
+		--disable-static \
+		--disable-debug \
+		--build=$ARCH-porteux-linux
+
+	make -j${NUMBER_THREADS} install
+
+	cd $TMP
+fi
+
+VERSION=$(download_master_from_github Xubuntu lightdm-gtk-greeter) || exit 1
+cd lightdm-gtk-greeter-master || exit 1
+
+CFLAGS="$GCC_CFLAGS -Wno-declaration-after-statement" \
+CXXFLAGS="$GCC_CXXFLAGS" \
+./autogen.sh \
+	--prefix=/usr \
+	--libdir=/usr/lib${SYSTEM_BITS} \
+	--localstatedir=/var \
+	--sysconfdir=/etc \
+	--with-libxklavier \
+	--enable-kill-on-sigterm \
+	--disable-libido \
+	--disable-libindicator \
+	--disable-at-spi-command \
+	--disable-indicator-services-command \
+	--disable-static
+
+make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG
+
+install -Dm644 "$CWD/wave.svg" "$PKG/usr/share/backgrounds/wave.svg"
+
+install -Dm644 "$CWD/lightdm-gtk-greeter.conf" $PKG/etc/lightdm/lightdm-gtk-greeter.conf
+sed -i "s|ICONTHEMETEMPLATE|$ICON_THEME|g" $PKG/etc/lightdm/lightdm-gtk-greeter.conf
+
+rm -fr $PKG/usr/share/doc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

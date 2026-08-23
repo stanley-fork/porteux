@@ -1,11 +1,12 @@
---- src/appfinder-window.c	2024-10-02 22:39:03.609708876 +0200
-+++ src/appfinder-window.c.patched	2024-10-02 23:00:46.984868492 +0200
+diff --git a/src/appfinder-window.c b/src/appfinder-window.c
+--- a/src/appfinder-window.c
++++ b/src/appfinder-window.c
 @@ -55,7 +55,7 @@
  
  #define XFCE_APPFINDER_LOCAL_PREFIX "file://"
  
 -
-+gboolean force_execute;
++static gboolean force_execute;
  static void       xfce_appfinder_window_finalize                      (GObject                     *object);
  static void       xfce_appfinder_window_focus_out                     (GtkWidget                   *widget);
  static void       xfce_appfinder_window_unmap                         (GtkWidget                   *widget);
@@ -39,7 +40,7 @@
 +      if (event->keyval == GDK_KEY_Up)
 +        return XFCE_APPFINDER_KEY_PREVIOUS;
 +    }
-+  else
++  else if (!event->is_modifier && event->keyval != GDK_KEY_Escape)
 +    {
 +      force_execute = TRUE;
 +    }

@@ -3,7 +3,7 @@
 PRGNAM=geoclue
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -20,12 +20,12 @@ cd $PRGNAM-$VERSION
 
 sed -i "s|subdir('demo|#subdir('demo|g" meson.build
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
@@ -42,14 +42,14 @@ meson setup \
 	-Dnmea-source=false \
 	-Ddemo-agent=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
-[ -e $TMP ] && rm -rf $TMP/etc/geoclue/geoclue.conf
+rm -f $PKG/etc/geoclue/geoclue.conf
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}2-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}2-$VERSION-$ARCH-1_porteux.txz

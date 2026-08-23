@@ -3,7 +3,7 @@
 PRGNAM=xfconf
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -13,7 +13,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -Ev '^xfce-|pre' | sort -Vr | {
-	if [[ "$ALLOWTEST" == "yes" ]]; then
+	if [[ "$ALLOW_TEST" == "yes" ]]; then
 		head -1
 	else
 		while read -r version; do
@@ -25,43 +25,52 @@ DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=a
 		done
 	fi
 })
+if [ -z "$DOWNLOADVERSION" ]; then
+	echo "Error: cannot detect latest $PRGNAM version."
+	exit 1
+fi
 VERSION=$(echo $DOWNLOADVERSION | rev | cut -d '-' -f 1 | rev)
 wget https://gitlab.xfce.org/xfce/${PRGNAM}/-/archive/${DOWNLOADVERSION}/${PRGNAM}-${DOWNLOADVERSION}.tar.gz
 
 tar xf $PRGNAM-$DOWNLOADVERSION.tar.?z*
 cd $PRGNAM-$DOWNLOADVERSION
 
-if [ -f autogen.sh ]; then
-	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
-	./autogen.sh \
-		--prefix=/usr \
-		--libdir=/usr/lib${SYSTEMBITS} \
-		--sysconfdir=/etc \
-		--enable-gsettings-backend \
-		--disable-static \
-		--disable-debug \
-		--build=$ARCH-porteux-linux
-
-	make -j${NUMBERTHREADS} install-strip DESTDIR=$PKG
-else
-	mkdir build && cd build
+if [ -f meson.build ]; then
+	mkdir meson-build && cd meson-build
 	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
 	meson setup \
 		--prefix=/usr \
 		--buildtype=release \
-		--libdir=/usr/lib${SYSTEMBITS} \
+		--libdir=/usr/lib${SYSTEM_BITS} \
 		--libexecdir=/usr/libexec \
 		--sysconfdir=/etc \
 		--localstatedir=/var \
-		-Dtests=false
+		-Dtests=false \
+		-Dgtk-doc=false \
+		-Dvala=disabled \
+		-Dprofiling=false \
+		-Dintrospection=false
 
-	DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+	DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+else
+	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
+	./autogen.sh \
+		--prefix=/usr \
+		--libdir=/usr/lib${SYSTEM_BITS} \
+		--sysconfdir=/etc \
+		--enable-gsettings-backend \
+		--disable-static \
+		--disable-debug \
+		--disable-introspection \
+		--build=$ARCH-porteux-linux
+
+	make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG
 fi
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

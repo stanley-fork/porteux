@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=python-ptyprocess
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,11 +14,8 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "pexpect" "ptyprocess")
-VERSION=${info#* }
-
-tar xf ptyprocess-$VERSION.tar.?z*
-cd ptyprocess-$VERSION
+VERSION=$(download_master_from_github pexpect ptyprocess) || exit 1
+cd ptyprocess-master || exit 1
 
 python -m build --wheel --no-isolation
 python -m installer --destdir "$PKG" dist/*.whl
@@ -27,4 +24,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

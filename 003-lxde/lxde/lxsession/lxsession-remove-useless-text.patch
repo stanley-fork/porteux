@@ -1,5 +1,6 @@
---- lxsession-logout/lxsession-logout.c	2025-04-01 11:18:10.000000000 +0200
-+++ lxsession-logout/lxsession-logout.c.patched	2025-05-01 21:39:14.019986880 +0200
+diff --git a/lxsession-logout/lxsession-logout.c b/lxsession-logout/lxsession-logout.c
+--- a/lxsession-logout/lxsession-logout.c
++++ b/lxsession-logout/lxsession-logout.c
 @@ -739,21 +739,12 @@
      GtkWidget * label = gtk_label_new("");
      if (prompt == NULL)
@@ -22,7 +23,7 @@
 -            prompt = g_strdup_printf(_("<b><big>Logout %s session?</big></b>"), session_name);
 -
 -        g_free(version_id);
-+            prompt = g_strdup_printf(_("<b><big>Log out %s</big></b>"), current_user);
++            prompt = g_markup_printf_escaped(_("<b><big>Log out %s</big></b>"), current_user);
      }
      gtk_label_set_markup(GTK_LABEL(label), prompt);
      gtk_box_pack_start(GTK_BOX(controls), label, FALSE, FALSE, 4);

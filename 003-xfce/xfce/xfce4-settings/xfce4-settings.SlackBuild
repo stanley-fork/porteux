@@ -3,7 +3,7 @@
 PRGNAM=xfce4-settings
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -13,7 +13,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -Ev '^xfce-|pre' | sort -Vr | {
-	if [[ "$ALLOWTEST" == "yes" ]]; then
+	if [[ "$ALLOW_TEST" == "yes" ]]; then
 		head -1
 	else
 		while read -r version; do
@@ -25,17 +25,41 @@ DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=a
 		done
 	fi
 })
+if [ -z "$DOWNLOADVERSION" ]; then
+	echo "Error: cannot detect latest $PRGNAM version."
+	exit 1
+fi
 VERSION=$(echo $DOWNLOADVERSION | rev | cut -d '-' -f 1 | rev)
 wget https://gitlab.xfce.org/xfce/${PRGNAM}/-/archive/${DOWNLOADVERSION}/${PRGNAM}-${DOWNLOADVERSION}.tar.gz
 
 tar xf $PRGNAM-$DOWNLOADVERSION.tar.?z*
 cd $PRGNAM-$DOWNLOADVERSION
 
-if [ -f autogen.sh ]; then
+if [ -f meson.build ]; then
+	(
+	rm -fr protocols/xfce-wayland-protocols && cd protocols/
+	wget https://gitlab.xfce.org/xfce/xfce-wayland-protocols/-/archive/main/xfce-wayland-protocols-main.tar.gz || exit 1
+	tar xf xfce-wayland-protocols-main.tar.gz || exit 1
+	mv xfce-wayland-protocols-main xfce-wayland-protocols || exit 1
+	)
+	mkdir meson-build && cd meson-build
+	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
+	meson setup \
+		--prefix=/usr \
+		--buildtype=release \
+		--libdir=/usr/lib${SYSTEM_BITS} \
+		--libexecdir=/usr/libexec \
+		--sysconfdir=/etc \
+		--localstatedir=/var
+
+	DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+	
+	rm $PKG/usr/share/applications/xfce4-text-editor.desktop
+else
 	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
 	./autogen.sh \
 		--prefix=/usr \
-		--libdir=/usr/lib${SYSTEMBITS} \
+		--libdir=/usr/lib${SYSTEM_BITS} \
 		--sysconfdir=/etc \
 		--enable-pluggable-dialogs \
 		--enable-sound-settings \
@@ -44,21 +68,7 @@ if [ -f autogen.sh ]; then
 		--enable-wayland \
 		--build=$ARCH-porteux-linux
 
-	make -j${NUMBERTHREADS} install-strip DESTDIR=$PKG
-else
-	mkdir build && cd build
-	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
-	meson setup \
-		--prefix=/usr \
-		--buildtype=release \
-		--libdir=/usr/lib${SYSTEMBITS} \
-		--libexecdir=/usr/libexec \
-		--sysconfdir=/etc \
-		--localstatedir=/var
-
-	DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
-	
-	rm $PKG/usr/share/applications/xfce4-text-editor.desktop
+	make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG
 fi
 
 rm $PKG/usr/share/applications/xfce4-file-manager.desktop
@@ -66,10 +76,10 @@ rm $PKG/usr/share/applications/xfce4-mail-reader.desktop
 rm $PKG/usr/share/applications/xfce4-terminal-emulator.desktop
 rm $PKG/usr/share/applications/xfce4-web-browser.desktop
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

@@ -3,7 +3,7 @@
 PRGNAM=freetype
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -20,25 +20,25 @@ tar xf $PRGNAM-$VERSIONDOWNLOAD.tar.?z*
 cd $PRGNAM-$VERSIONDOWNLOAD
 
 for i in $CWD/*.patch; do
-	patch -p0 < $i
+	patch -p1 < $i
 done
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CFLAGS="$CLANG_CFLAGS" \
 LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--localstatedir=/var \
 	--prefix=/usr \
 	--sysconfdir=/etc \
 	-Dharfbuzz=dynamic
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
 rm -fr $PKG/usr/bin
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 find $PKG -type f -name "*.a" -exec rm -f {} \;
 
 mkdir -p $PKG/etc/profile.d/
@@ -49,4 +49,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

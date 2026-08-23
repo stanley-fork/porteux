@@ -1,9 +1,11 @@
 #!/bin/bash
 
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
 PRGNAM=gtk+3-classic
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -20,8 +22,7 @@ cd gtk-$VERSION
 
 sed -i "s|subdir('docs|#subdir('docs|g" meson.build
 
-wget https://github.com/lah7/gtk3-classic/archive/refs/heads/master.tar.gz
-tar xf master.tar.gz && rm master.tar.gz
+download_master_from_github lah7 gtk3-classic || exit 1
 rm gtk3-classic*/gtk+-atk-bridge-meson.build.patch
 rm gtk3-classic*/gtk+-atk-bridge-meson_options.txt.patch
 rm gtk3-classic*/appearance__disable-backdrop.patch
@@ -30,26 +31,26 @@ for i in gtk3-classic-master/*.patch; do
 	patch -p1 < $i
 done
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CFLAGS="$CLANG_CFLAGS" \
 LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--localstatedir=/var \
 	--prefix=/usr \
 	--sysconfdir=/etc \
 	--libexecdir=/usr/libexec \
-	-Dbroadway_backend=true \
+	-Dbroadway_backend=false \
 	-Ddemos=false \
 	-Dexamples=false \
 	-Dtests=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

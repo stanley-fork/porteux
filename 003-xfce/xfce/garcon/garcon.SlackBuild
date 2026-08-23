@@ -3,7 +3,7 @@
 PRGNAM=garcon
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -13,7 +13,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -Ev '^xfce-|pre' | sort -Vr | {
-	if [[ "$ALLOWTEST" == "yes" ]]; then
+	if [[ "$ALLOW_TEST" == "yes" ]]; then
 		head -1
 	else
 		while read -r version; do
@@ -31,25 +31,43 @@ wget https://gitlab.xfce.org/xfce/${PRGNAM}/-/archive/${DOWNLOADVERSION}/${PRGNA
 tar xf $PRGNAM-$DOWNLOADVERSION.tar.?z*
 cd $PRGNAM-$DOWNLOADVERSION
 
-CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
-./autogen.sh \
-	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
-	--sysconfdir=/etc \
-	--disable-static \
-	--disable-debug \
-	--build=$ARCH-porteux-linux
+if [ -f meson.build ]; then
+	mkdir meson-build && cd meson-build
+	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
+	meson setup \
+		--prefix=/usr \
+		--buildtype=release \
+		--libdir=/usr/lib${SYSTEM_BITS} \
+		--libexecdir=/usr/libexec \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		-Dtests=false \
+		-Dgtk-doc=false \
+		-Dintrospection=false
 
-make -j${NUMBERTHREADS} install-strip DESTDIR=$PKG
+	DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+else
+	CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
+	./autogen.sh \
+		--prefix=/usr \
+		--libdir=/usr/lib${SYSTEM_BITS} \
+		--sysconfdir=/etc \
+		--disable-static \
+		--disable-debug \
+		--disable-introspection \
+		--build=$ARCH-porteux-linux
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+	make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG
+fi
+
+find $PKG -type f -name "*.la" -delete
 
 cd $PKG
 
 # make main menu more beautiful
-patch -p0 < $CWD/xfce-applications.menu.patch
+patch -p1 < $CWD/xfce-applications.menu.patch
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

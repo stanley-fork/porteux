@@ -1,0 +1,12 @@
+diff --git a/src/ls.c b/src/ls.c
+--- a/src/ls.c
++++ b/src/ls.c
+@@ -2342,7 +2342,7 @@
+     qs = getenv_quoting_style ();
+   if (qs < 0)
+     qs = (ls_mode == LS_LS
+-          ? (stdout_isatty () ? shell_escape_quoting_style : -1)
++          ? (stdout_isatty () ? escape_quoting_style : -1)
+           : escape_quoting_style);
+   if (0 <= qs)
+     set_quoting_style (NULL, qs);

@@ -3,7 +3,7 @@
 PRGNAM=wlr-randr
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,13 +12,12 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(curl -s https://gitlab.freedesktop.org/emersion/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | rev | cut -d "-" -f 1 | rev | sort -Vr | head -1)
-wget https://gitlab.freedesktop.org/emersion/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${VERSION}.tar.gz
+wget https://gitlab.freedesktop.org/emersion/${PRGNAM}/-/archive/master/${PRGNAM}-master.tar.gz
+tar xf ${PRGNAM}-master.tar.?z*
+cd ${PRGNAM}-master
+VERSION=$(date -r . +%Y%m%d)
 
-tar xf $PRGNAM-$VERSION.tar.?z*
-cd $PRGNAM-$VERSION
-
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CXX=clang++ \
 CFLAGS="$CLANG_CFLAGS" \
@@ -26,7 +25,7 @@ CXXFLAGS="$CLANG_CXXFLAGS" \
 LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--bindir=/usr/bin \
 	--sbindir=/usr/sbin \
@@ -36,12 +35,12 @@ meson setup \
 	--localstatedir=/var \
 	--buildtype=release
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-${VERSION//[vV]}-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-${VERSION//[vV]}-$ARCH-1_porteux.txz

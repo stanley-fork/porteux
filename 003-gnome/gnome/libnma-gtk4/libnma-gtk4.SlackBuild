@@ -3,7 +3,7 @@
 PRGNAM=libnma
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,24 +12,23 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | eval "${TESTRELEASES}" | head -1)
-wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${VERSION}.tar.gz
-[ ! -s ${PRGNAM}-${VERSION}.tar.gz ] && wget https://github.com/GNOME/${PRGNAM}/archive/refs/tags/$VERSION.tar.gz -O $PRGNAM-$VERSION.tar.gz
+wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/main/${PRGNAM}-main.tar.gz
+tar xf ${PRGNAM}-main.tar.?z*
+cd ${PRGNAM}-main
+VERSION=$(date -r . +%Y%m%d)
 
-tar xf $PRGNAM-$VERSION.tar.?z*
-cd $PRGNAM-$VERSION
-
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
+	--buildtype=release \
 	--prefix=/usr \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
 	-Dlibnma_gtk4=true \
 	-Dgtk_doc=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
 # Remove all extra bits included in the base libnma package
 # This package is _ONLY_ for the gtk4 lib
@@ -40,16 +39,14 @@ rm -f $PKG/usr/share/vala/vapi/libnma.deps
 rm -f $PKG/usr/share/vala/vapi/libnma.vapi
 rm -f $PKG/usr/share/gir-1.0/NMA-1.0.gir
 
-rm $PKG/usr/lib${SYSTEMBITS}/girepository-1.0/NMA-1.0.typelib
-rm $PKG/usr/lib${SYSTEMBITS}/pkgconfig/libnma.pc
-rm $PKG/usr/lib${SYSTEMBITS}/libnma.so.0.0.0
-rm $PKG/usr/lib${SYSTEMBITS}/libnma.so.0
-rm $PKG/usr/lib${SYSTEMBITS}/libnma.so
+rm -f $PKG/usr/lib${SYSTEM_BITS}/girepository-1.0/NMA-1.0.typelib
+rm -f $PKG/usr/lib${SYSTEM_BITS}/pkgconfig/libnma.pc
+rm -f $PKG/usr/lib${SYSTEM_BITS}/libnma.so*
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-gtk4-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-gtk4-$VERSION-$ARCH-1_porteux.txz

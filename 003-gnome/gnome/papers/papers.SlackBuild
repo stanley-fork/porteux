@@ -3,7 +3,7 @@
 PRGNAM=papers
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,7 +12,7 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | eval "${TESTRELEASES}" | head -1)
+VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | eval "${TEST_RELEASES:-sort -Vr}" | head -1)
 wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${VERSION}.tar.gz
 [ ! -s ${PRGNAM}-${VERSION}.tar.gz ] && wget https://github.com/GNOME/${PRGNAM}/archive/refs/tags/$VERSION.tar.gz -O $PRGNAM-$VERSION.tar.gz
 
@@ -22,7 +22,7 @@ cd $PRGNAM-$VERSION
 sed -i "s|subdir('help')|#subdir('help')|g" meson.build
 sed -i "s|^appstreamcli|#appstreamcli|g" meson.build
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CC=clang \
 CFLAGS="$CLANG_CFLAGS" \
 RUSTFLAGS="${RUSTFLAGS/-Clto=fat/}" \
@@ -30,7 +30,7 @@ LDFLAGS="$LLDFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
@@ -44,12 +44,12 @@ meson setup \
 	-Dpdf=enabled \
 	-Dfile_tests=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${PRGNAM}-$VERSION-$ARCH-1_porteux.txz

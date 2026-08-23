@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=flatpak
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,12 +14,12 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(GetLatestVersionTagFromGithub ${PRGNAM} ${PRGNAM})
+VERSION=$(get_latest_version_tag_from_github ${PRGNAM} ${PRGNAM})
 versions_to_ignore="${VERSION}"
 minor_version=$(echo "$VERSION" | cut -d. -f2)
 
 while (( ${minor_version} % 2 == 1 )); do
-	VERSION=$(GetLatestVersionTagFromGithub "${PRGNAM}" "${PRGNAM}" "${versions_to_ignore}|${VERSION}")
+	VERSION=$(get_latest_version_tag_from_github "${PRGNAM}" "${PRGNAM}" "${versions_to_ignore}|${VERSION}")
 	versions_to_ignore="${versions_to_ignore}|${VERSION}"
 	minor_version=$(echo "$VERSION" | cut -d. -f2)
 done
@@ -32,23 +32,30 @@ cd $PRGNAM-$VERSION
 sed -i "s|subdir('tests')|#subdir('tests')|g" meson.build
 sed -i "s|subdir('doc')|#subdir('doc')|g" meson.build
 
-mkdir build && cd build
+mkdir meson-build && cd meson-build
 CFLAGS="$GCC_CFLAGS" \
 meson setup \
 	--prefix=/usr \
 	--buildtype=release \
-	--libdir=/usr/lib${SYSTEMBITS} \
+	--libdir=/usr/lib${SYSTEM_BITS} \
 	--libexecdir=/usr/libexec \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
-	-Ddocbook_docs=disabled
+	-Ddocbook_docs=disabled \
+	-Dgir=disabled \
+	-Dman=disabled \
+	-Dtests=false
 
-DESTDIR=$PKG ninja -j${NUMBERTHREADS} install
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
+rm -fr $PKG/usr/share/bash-completion
+rm -fr $PKG/usr/share/zsh
+rm -fr $PKG/usr/share/fish
 
 echo 'export XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share:$HOME/.local/share/applications}"' > $PKG/etc/profile.d/flatpak.sh
-cp $PKG/etc/profile.d/flatpak.sh $PKG/etc/profile.d/flatpak.csh
+echo 'if ( ! $?XDG_DATA_DIRS ) setenv XDG_DATA_DIRS "/usr/local/share:/usr/share:$HOME/.local/share/applications"' > $PKG/etc/profile.d/flatpak.csh
+echo 'setenv XDG_DATA_DIRS "$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS"' >> $PKG/etc/profile.d/flatpak.csh
 chmod 755 $PKG/etc/profile.d/flatpak*
 mv $PKG/usr/bin/flatpak $PKG/usr/bin/flatpak_
 install -Dm755 "$CWD/flatpak" $PKG/usr/bin/flatpak
@@ -59,4 +66,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

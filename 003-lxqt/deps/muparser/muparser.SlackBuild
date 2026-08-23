@@ -1,11 +1,11 @@
 #!/bin/bash
 
-source "$BUILDERUTILSPATH/latestfromgithub.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 PRGNAM=muparser
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -14,26 +14,23 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(DownloadLatestFromGithub "beltoforion" ${PRGNAM})
-VERSION=${info#* }
-
-tar xf $PRGNAM-$VERSION.tar.?z*
-cd $PRGNAM-$VERSION
+VERSION=$(download_master_from_github beltoforion muparser) || exit 1
+cd muparser-master || exit 1
 
 cmake -B build -S . \
 	-DCMAKE_BUILD_TYPE=release \
 	-DCMAKE_C_FLAGS="$GCC_CFLAGS" \
 	-DCMAKE_CXX_FLAGS="$GCC_CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX=/usr \
-	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEMBITS} \
+	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEM_BITS} \
 	-DENABLE_SAMPLES=off
 
-make -C build -j${NUMBERTHREADS} DESTDIR="$PKG" install
+make -C build -j${NUMBER_THREADS} DESTDIR="$PKG" install
 
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

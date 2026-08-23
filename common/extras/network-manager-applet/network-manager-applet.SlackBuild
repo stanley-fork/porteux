@@ -1,0 +1,54 @@
+#!/bin/bash
+
+PRGNAM=network-manager-applet
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+VERSION=$(curl -s https://gitlab.gnome.org/GNOME/${PRGNAM}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -v "show" | sort -Vr | {
+	while read -r version; do
+		minor=$(echo "$version" | cut -d. -f2)
+		if (( minor % 2 == 0 )); then
+			echo "$version"
+			break
+		fi
+	done
+})
+wget https://gitlab.gnome.org/GNOME/${PRGNAM}/-/archive/${VERSION}/${PRGNAM}-${VERSION}.tar.gz
+
+tar xf $PRGNAM-$VERSION.tar.?z*
+cd $PRGNAM-$VERSION
+
+for i in $CWD/*.patch; do
+	patch -p1 < $i
+done
+
+mkdir meson-build && cd meson-build
+CFLAGS="$GCC_CFLAGS" \
+meson setup \
+	--prefix=/usr \
+	--buildtype=release \
+	--libdir=/usr/lib${SYSTEM_BITS} \
+	--libexecdir=/usr/libexec \
+	--sysconfdir=/etc \
+	--localstatedir=/var \
+	-Dteam=false \
+	-Dselinux=false \
+	-Dwwan=false
+
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+
+find $PKG -type f -name "*.la" -delete
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

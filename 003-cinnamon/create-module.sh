@@ -1,0 +1,283 @@
+#!/bin/bash
+
+MODULE_NAME="003-cinnamon"
+
+source "$PWD/../builder-utils/set-flags.sh"
+
+set_flags "$MODULE_NAME"
+
+source "$BUILDER_UTILS_PATH/cache-files.sh"
+source "$BUILDER_UTILS_PATH/generic-strip.sh"
+source "$BUILDER_UTILS_PATH/helper.sh"
+
+elevate_if_needed "$0" "$@"
+
+if [[ ${ALLOW_TEST:-no} == no ]]; then
+	export TEST_RELEASES="master.|alpha|beta|rc[0-9]|unstable"
+else
+	export TEST_RELEASES="master."
+fi
+
+LATEST_VERSION=$(curl -s https://github.com/linuxmint/cinnamon/tags/ | grep "/linuxmint/cinnamon/releases/tag/" | grep -oP "(?<=/linuxmint/cinnamon/releases/tag/)[^\"]+" | uniq | grep -Ev "cjs-|${TEST_RELEASES}" | sort -Vr | head -1)
+[ "$LATEST_VERSION" ] || { echo "Error: could not detect Cinnamon version." >&2; exit 1; }
+echo -e "Building Cinnamon ${LATEST_VERSION} based on Slackware ${SLACKWARE_VERSION} ${ARCH}...\n"
+MODULE_NAME="$MODULE_NAME-${LATEST_VERSION}"
+
+### create module folder
+
+mkdir -p $MODULE_PATH/packages > /dev/null 2>&1
+cd $MODULE_PATH || exit 1
+
+### download packages from slackware repository
+
+bash $SCRIPT_PATH/download-packages.sh || exit 1
+
+### packages outside slackware repository
+
+export SESSION_TEMPLATE=cinnamon
+export ICON_THEME=Yaru-blue
+
+# required by lightdm
+installpkg $MODULE_PATH/packages/libxklavier*.txz || exit 1
+
+# required from now on
+installpkg $MODULE_PATH/packages/libappindicator*.txz || exit 1
+installpkg $MODULE_PATH/packages/libdbusmenu*.txz || exit 1
+installpkg $MODULE_PATH/packages/libindicator*.txz || exit 1
+
+# cinnamon common deps
+for package in \
+	audacious \
+	lightdm \
+	vte \
+	libnma \
+	gsound \
+	libpeas \
+	libgxps \
+	gtksourceview4 \
+	zenity \
+; do
+bash $SCRIPT_PATH/../common/deps/${package}/${package}.SlackBuild || exit 1
+installpkg $MODULE_PATH/packages/${package}*.txz || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+# cinnamon common extras
+for package in \
+	audacious-plugins \
+	ffmpegthumbnailer \
+	gnome-screenshot \
+	lightdm-gtk-greeter \
+	mate-polkit \
+	network-manager-applet \
+; do
+bash $SCRIPT_PATH/../common/extras/${package}/${package}.SlackBuild || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+# required from now on
+installpkg $MODULE_PATH/packages/aspell*.txz || exit 1
+installpkg $MODULE_PATH/packages/colord*.txz || exit 1
+installpkg $MODULE_PATH/packages/enchant*.txz || exit 1
+installpkg $MODULE_PATH/packages/gspell*.txz || exit 1
+installpkg $MODULE_PATH/packages/iso-codes*.txz || exit 1
+installpkg $MODULE_PATH/packages/libgee*.txz || exit 1
+installpkg $MODULE_PATH/packages/libgtop*.txz || exit 1
+installpkg $MODULE_PATH/packages/libhandy*.txz || exit 1
+installpkg $MODULE_PATH/packages/libsoup*.txz || exit 1
+installpkg $MODULE_PATH/packages/libspectre*.txz || exit 1
+installpkg $MODULE_PATH/packages/libwnck3*.txz || exit 1
+installpkg $MODULE_PATH/packages/python-six*.txz || exit 1
+
+# required only for building
+installpkg $MODULE_PATH/packages/libgsf*.txz || exit 1
+rm $MODULE_PATH/packages/libgsf*.txz
+installpkg $MODULE_PATH/packages/python-build*.txz || exit 1
+rm $MODULE_PATH/packages/python-build*.txz
+installpkg $MODULE_PATH/packages/python-flit-core*.txz || exit 1
+rm $MODULE_PATH/packages/python-flit-core*.txz
+installpkg $MODULE_PATH/packages/python-installer*.txz || exit 1
+rm $MODULE_PATH/packages/python-installer*.txz
+installpkg $MODULE_PATH/packages/python-pip*.txz || exit 1
+rm $MODULE_PATH/packages/python-pip*.txz
+installpkg $MODULE_PATH/packages/python-pyproject-hooks*.txz || exit 1
+rm $MODULE_PATH/packages/python-pyproject-hooks*.txz
+installpkg $MODULE_PATH/packages/python-wheel*.txz || exit 1
+rm $MODULE_PATH/packages/python-wheel*.txz
+installpkg $MODULE_PATH/packages/xtrans*.txz || exit 1
+rm $MODULE_PATH/packages/xtrans*.txz
+
+# cinnamon deps
+for package in \
+	python-tinycss2 \
+	xdotool \
+	python-pytz \
+	libtimezonemap \
+	python-setproctitle \
+	python-ptyprocess \
+	python-pam \
+	libgnomekbd \
+	cogl \
+	clutter \
+	caribou \
+	python-pexpect \
+	python-polib \
+	python-xapp \
+; do
+bash $SCRIPT_PATH/deps/${package}/${package}.SlackBuild || exit 1
+installpkg $MODULE_PATH/packages/${package}*.txz || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+# required only for building
+rm $MODULE_PATH/packages/cogl*.txz
+rm $MODULE_PATH/packages/clutter*.txz
+
+# cinnamon common extras
+for package in \
+	file-roller \
+; do
+bash $SCRIPT_PATH/../common/extras/${package}/${package}.SlackBuild || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+# cinnamon extras
+for package in \
+	gnome-terminal \
+	gnome-system-monitor \
+	xapp-symbolic-icons \
+	yaru-icon-theme \
+; do
+bash $SCRIPT_PATH/extras/${package}/${package}.SlackBuild || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+cd $MODULE_PATH || exit 1
+pip install pysass || exit 1 # required by cinnamon project
+
+installpkg $MODULE_PATH/packages/mozjs*.txz || exit 1
+
+# cinnamon packages
+for package in \
+	cjs \
+	cinnamon-desktop \
+	xapp \
+	cinnamon-session \
+	cinnamon-settings-daemon \
+	cinnamon-menus \
+	cinnamon-control-center \
+	muffin \
+	nemo \
+	nemo-extensions \
+	cinnamon-screensaver \
+	cinnamon \
+	xreader \
+	xviewer \
+	xed \
+; do
+bash $SCRIPT_PATH/cinnamon/${package}/${package}.SlackBuild || exit 1
+installpkg $MODULE_PATH/packages/${package}*.txz || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+### packages that require specific stripping
+
+strip_package gettext-tools \
+	usr/bin/msgfmt \
+	usr/lib${SYSTEM_BITS}/libgettextlib*.so* \
+	usr/lib${SYSTEM_BITS}/libgettextsrc*.so*
+	
+strip_package iso-codes \
+	usr/share/xml/iso-codes/iso_3166-1.xml \
+	usr/share/xml/iso-codes/iso_3166.xml \
+	usr/share/xml/iso-codes/iso_639-2.xml \
+	usr/share/xml/iso-codes/iso_639-3.xml \
+	usr/share/xml/iso-codes/iso_639.xml \
+	usr/share/xml/iso-codes/iso_639_3.xml
+
+current_package=ibus
+mkdir $MODULE_PATH/${current_package} && cd $MODULE_PATH/${current_package} || exit 1
+mv $MODULE_PATH/packages/${current_package}-[0-9]* .
+package_file_name=$(ls ${current_package}-[0-9]*.t?z | head -n1)
+package_file_name=${package_file_name%.*}
+ROOT=./ installpkg ${current_package}-[0-9]*.t?z && rm ${current_package}-[0-9]*.t?z
+rm usr/share/applications/org.freedesktop.IBus.Setup.desktop
+rm -fr usr/share/ibus/dicts
+rm -fr var/lib/pkgtools
+rm -f var/log/packages
+rm -fr var/log/pkgtools
+rm -f var/log/setup
+rm -f var/log/scripts
+mkdir ${current_package}-stripped
+find . -mindepth 1 -maxdepth 1 ! -name "${current_package}-stripped" -exec mv -t "${current_package}-stripped" {} +
+cd ${current_package}-stripped || exit 1
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${package_file_name}_stripped.txz > /dev/null 2>&1
+rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+
+### fake root
+
+install_packages
+
+### install additional packages, including porteux utils
+
+install_additional_packages
+
+### copy build files to 05-devel
+
+copy_to_devel
+
+### copy language files to 08-multilanguage
+
+copy_to_multilanguage
+
+### module clean up
+
+cd $MODULE_PATH/packages/ || exit 1
+
+{
+rm etc/xdg/autostart/blueman.desktop
+rm usr/bin/js[0-9]*
+rm usr/lib${SYSTEM_BITS}/libappindicator.*
+rm usr/lib${SYSTEM_BITS}/libdbusmenu-gtk.*
+rm usr/lib${SYSTEM_BITS}/libindicator.*
+rm usr/libexec/indicator-loader
+
+rm -fr etc/dbus-1/system.d
+rm -fr etc/dconf
+rm -fr etc/geoclue
+rm -fr etc/opt
+rm -fr usr/lib${SYSTEM_BITS}/aspell
+rm -fr usr/lib${SYSTEM_BITS}/glade
+rm -fr usr/lib${SYSTEM_BITS}/graphene-1.0
+rm -fr usr/lib${SYSTEM_BITS}/gtk-2.0
+rm -fr usr/lib*/python*/site-packages/pip*
+rm -fr usr/lib*/python*/site-packages/psutil/tests
+rm -fr usr/share/gdm
+rm -fr usr/share/glade/pixmaps
+rm -fr usr/share/gnome
+rm -fr usr/share/gtksourceview-2.0
+rm -fr usr/share/gtksourceview-3.0
+rm -fr usr/share/libdbusmenu
+rm -fr usr/share/pixmaps
+rm -fr usr/share/Thunar
+rm -fr var/lib/AccountsService
+
+[ "$SYSTEM_BITS" == 64 ] && find usr/lib/ -mindepth 1 -maxdepth 1 ! \( -name "python*" \) -exec rm -rf '{}' \; 2>/dev/null
+find usr/share/cinnamon/faces -mindepth 1 -maxdepth 1 ! \( -name "user-generic*" \) -exec rm -rf '{}' \; 2>/dev/null
+find usr/share/cinnamon/thumbnails/cursors -mindepth 1 -maxdepth 1 ! \( -name "Adwaita*" -o -name "Paper*" -o -name "unknown*" -o -name "Yaru*" \) -exec rm -rf '{}' \; 2>/dev/null
+} >/dev/null 2>&1
+
+strip_clean --exceptions='libmozjs-*,libvte-*'
+strip_hard_all --exceptions='libmozjs-*,libvte-*'
+
+### copy cache files
+
+prepare_files_for_cache_de
+
+### generate cache files
+
+generate_caches_de
+
+### finalize
+
+finalize

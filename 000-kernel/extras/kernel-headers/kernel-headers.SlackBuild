@@ -1,0 +1,37 @@
+#!/bin/bash
+
+PRGNAM=kernel-headers
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+if [ ! -d "${KERNEL_SOURCE}" ]; then
+	echo "Error: kernel source directory ${KERNEL_SOURCE} does not exist."
+	exit 1
+fi
+
+VERSION=$(echo "${KERNEL_SOURCE}" | rev | cut -d "-" -f 1 | rev)
+
+cd ${KERNEL_SOURCE}
+
+make -j${NUMBER_THREADS} headers_install ARCH="x86" INSTALL_HDR_PATH=$PKG/usr
+cd $PKG/usr/include
+
+rm -rf drm
+mv asm asm-x86
+ln -sf asm-x86 asm
+
+find . -name ".??*" -exec rm -f {} \+
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-x86-1_porteux.txz > /dev/null 2>&1

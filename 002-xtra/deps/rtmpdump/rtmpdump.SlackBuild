@@ -3,7 +3,7 @@
 PRGNAM=rtmpdump
 
 CWD=$(dirname "$0")
-TMP=$MODULEPATH/$PRGNAM
+TMP=$MODULE_PATH/$PRGNAM
 PKG=$TMP/package-$PRGNAM
 
 set -e
@@ -12,7 +12,7 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-git clone git://git.ffmpeg.org/${PRGNAM}.git
+git clone https://github.com/mirror/rtmpdump
 cd $PRGNAM
 VERSION=`git log -1 --date=format:"%Y%m%d" --format="%ad"`
 
@@ -25,15 +25,15 @@ sed -i \
 	-e 's/#CRYPTO=GNUTLS/CRYPTO=GNUTLS/' \
 	Makefile librtmp/Makefile
 
-CFLAGS="$GCC_CFLAGS" \
-make -j${NUMBERTHREADS} \
+XCFLAGS="$GCC_CFLAGS" \
+make -j${NUMBER_THREADS} \
 	prefix=/usr \
-	libdir=/usr/lib${SYSTEMBITS} \
+	libdir=/usr/lib${SYSTEM_BITS} \
 	DESTDIR=$PKG \
 	install
 
 find $PKG -type f -name "*.a" -exec rm -f {} \;
-find $PKG -type f -name "*.la" -exec rm -f {} \;
+find $PKG -type f -name "*.la" -delete
 
 rm -fr $PKG/usr/bin
 rm -fr $PKG/usr/sbin
@@ -42,4 +42,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg ${MAKEPKGFLAGS} $MODULEPATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz

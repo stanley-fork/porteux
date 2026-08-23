@@ -1,0 +1,44 @@
+#!/bin/bash
+
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
+
+PRGNAM=engrampa
+
+CWD=$(dirname "$0")
+TMP=$MODULE_PATH/$PRGNAM
+PKG=$TMP/package-$PRGNAM
+
+set -e
+
+[ -e $TMP ] && rm -rf $TMP
+mkdir -p $TMP $PKG
+cd $TMP
+
+info=$(download_latest_from_github "mate-desktop" $PRGNAM "1.29")
+VERSION=${info#* }
+
+tar xf $PRGNAM-$VERSION.tar.?z
+cd $PRGNAM-$VERSION
+
+sed -i "s|subdir('help')|#subdir('help')|g" meson.build
+
+mkdir meson-build && cd meson-build
+CFLAGS="$GCC_CFLAGS -ffat-lto-objects" \
+meson setup \
+	--buildtype=release \
+	--libdir=/usr/lib${SYSTEM_BITS} \
+	--localstatedir=/var \
+	--prefix=/usr \
+	--sysconfdir=/etc \
+	-Dcaja-actions=${CAJA_ACTIONS:-false}
+
+DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
+
+find $PKG -type f -name "*.la" -delete
+rm -fr $PKG/usr/share/engrampa
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/$PRGNAM-$VERSION-$ARCH-1_porteux.txz
