@@ -14,8 +14,8 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-info=$(download_latest_from_github "linuxmint" ${PRGNAM} "${TEST_RELEASES}")
-VERSION=${info#* }
+VERSION=$(get_latest_versions_tag_from_github "linuxmint" ${PRGNAM} "${TEST_RELEASES}" | grep -m1 "^${CINNAMON_SERIES}")
+wget https://github.com/linuxmint/${PRGNAM}/archive/refs/tags/${VERSION}.tar.gz -O $PRGNAM-$VERSION.tar.gz
 
 tar xf $PRGNAM-$VERSION*.tar.?z
 cd $PRGNAM-$VERSION*/
@@ -38,6 +38,7 @@ cp -s xinitrc.cinnamon xinitrc
 
 # fix for Wayland sessions which happens to also work for X11
 sed -i "/cinnamon-session-binary/c exec dbus-run-session -- /usr/libexec/cinnamon-session-binary \"\$@\"" $PKG/usr/bin/cinnamon-session
+grep -q "exec dbus-run-session" $PKG/usr/bin/cinnamon-session
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

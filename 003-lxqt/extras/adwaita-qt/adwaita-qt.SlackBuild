@@ -18,17 +18,18 @@ VERSION=$(download_master_from_github FedoraQt adwaita-qt) || exit 1
 cd adwaita-qt-master || exit 1
 
 for i in $CWD/*.patch; do
-	patch -p1 < $i
+	patch -p1 < "$i"
 done
 
 cmake -B build -S . \
+	-G Ninja \
 	-DCMAKE_BUILD_TYPE=release \
 	-DCMAKE_CXX_FLAGS="$GCC_CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX=/usr \
 	-DCMAKE_INSTALL_LIBDIR=lib${SYSTEM_BITS} \
 	-DUSE_QT6=true
 
-make -C build -j${NUMBER_THREADS} DESTDIR="$PKG" install
+DESTDIR="$PKG" ninja -C build -j${NUMBER_THREADS} install
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

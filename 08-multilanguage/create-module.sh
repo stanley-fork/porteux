@@ -2,7 +2,7 @@
 
 MODULE_NAME="08-multilanguage"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 

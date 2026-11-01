@@ -2,13 +2,14 @@
 
 MODULE_NAME="003-cinnamon"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
 source "$BUILDER_UTILS_PATH/cache-files.sh"
 source "$BUILDER_UTILS_PATH/generic-strip.sh"
 source "$BUILDER_UTILS_PATH/helper.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 elevate_if_needed "$0" "$@"
 
@@ -18,10 +19,11 @@ else
 	export TEST_RELEASES="master."
 fi
 
-LATEST_VERSION=$(curl -s https://github.com/linuxmint/cinnamon/tags/ | grep "/linuxmint/cinnamon/releases/tag/" | grep -oP "(?<=/linuxmint/cinnamon/releases/tag/)[^\"]+" | uniq | grep -Ev "cjs-|${TEST_RELEASES}" | sort -Vr | head -1)
+LATEST_VERSION=$(get_latest_version_tag_from_github linuxmint cinnamon "cjs-|${TEST_RELEASES}")
 [ "$LATEST_VERSION" ] || { echo "Error: could not detect Cinnamon version." >&2; exit 1; }
 echo -e "Building Cinnamon ${LATEST_VERSION} based on Slackware ${SLACKWARE_VERSION} ${ARCH}...\n"
 MODULE_NAME="$MODULE_NAME-${LATEST_VERSION}"
+export CINNAMON_SERIES="${LATEST_VERSION%.*}."
 
 ### create module folder
 
@@ -52,6 +54,7 @@ for package in \
 	vte \
 	libnma \
 	gsound \
+	gtk-layer-shell \
 	libpeas \
 	libgxps \
 	gtksourceview4 \
@@ -197,10 +200,12 @@ strip_package iso-codes \
 
 current_package=ibus
 mkdir $MODULE_PATH/${current_package} && cd $MODULE_PATH/${current_package} || exit 1
-mv $MODULE_PATH/packages/${current_package}-[0-9]* .
+rm -f $MODULE_PATH/packages/${current_package}-[0-9]*_stripped.t?z
+mv $MODULE_PATH/packages/${current_package}-[0-9]* . || exit 1
 package_file_name=$(ls ${current_package}-[0-9]*.t?z | head -n1)
 package_file_name=${package_file_name%.*}
-ROOT=./ installpkg ${current_package}-[0-9]*.t?z && rm ${current_package}-[0-9]*.t?z
+ROOT=./ installpkg ${current_package}-[0-9]*.t?z || exit 1
+rm ${current_package}-[0-9]*.t?z
 rm usr/share/applications/org.freedesktop.IBus.Setup.desktop
 rm -fr usr/share/ibus/dicts
 rm -fr var/lib/pkgtools
@@ -211,8 +216,8 @@ rm -f var/log/scripts
 mkdir ${current_package}-stripped
 find . -mindepth 1 -maxdepth 1 ! -name "${current_package}-stripped" -exec mv -t "${current_package}-stripped" {} +
 cd ${current_package}-stripped || exit 1
-makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${package_file_name}_stripped.txz > /dev/null 2>&1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${package_file_name}_stripped.txz > /dev/null 2>&1 || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 ### fake root
 
@@ -267,8 +272,9 @@ find usr/share/cinnamon/faces -mindepth 1 -maxdepth 1 ! \( -name "user-generic*"
 find usr/share/cinnamon/thumbnails/cursors -mindepth 1 -maxdepth 1 ! \( -name "Adwaita*" -o -name "Paper*" -o -name "unknown*" -o -name "Yaru*" \) -exec rm -rf '{}' \; 2>/dev/null
 } >/dev/null 2>&1
 
-strip_clean --exceptions='libmozjs-*,libvte-*'
-strip_hard_all --exceptions='libmozjs-*,libvte-*'
+exceptions=('libmozjs-*' 'libvte-*')
+strip_clean "${exceptions[@]}"
+strip_hard_all "${exceptions[@]}"
 
 ### copy cache files
 

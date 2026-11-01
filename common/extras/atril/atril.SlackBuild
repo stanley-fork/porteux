@@ -14,14 +14,14 @@ set -e
 mkdir -p $TMP $PKG
 cd $TMP
 
-VERSION=$(get_latest_version_tag_from_github "mate-desktop" ${PRGNAM} "1.29")
+VERSION=$(get_latest_version_tag_from_github "mate-desktop" ${PRGNAM} "$ODD_MINOR_RELEASES")
 wget https://github.com/mate-desktop/atril/archive/refs/tags/${VERSION}.tar.gz -O ${PRGNAM}-$VERSION.tar.gz
 
 tar xf ${PRGNAM}-$VERSION.tar.?z
 cd ${PRGNAM}-${VERSION//[vV]}
 
 for i in $CWD/*.patch; do
-	patch -p1 < $i
+	patch -p1 < "$i"
 done
 
 sed -i "s|mate_desktop = dependency|#mate_desktop = dependency|g" meson.build

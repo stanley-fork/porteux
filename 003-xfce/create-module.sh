@@ -2,7 +2,7 @@
 
 MODULE_NAME="003-xfce"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -68,6 +68,11 @@ installpkg $MODULE_PATH/packages/${package}*.txz || exit 1
 find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
 done
 
+current_package=xfce4-dev-tools
+bash $SCRIPT_PATH/../common/deps/${current_package}/${current_package}.SlackBuild || exit 1
+installpkg $MODULE_PATH/packages/${current_package}-[0-9]*.txz || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
+
 # xfce common extras
 for package in \
 	atril \
@@ -87,11 +92,11 @@ done
 
 current_package=wlr-protocols
 bash $SCRIPT_PATH/deps/${current_package}/${current_package}.SlackBuild || exit 1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 current_package=mate-search-tool
 bash $SCRIPT_PATH/extras/${current_package}/${current_package}.SlackBuild || exit 1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 # required by mousepad
 installpkg $MODULE_PATH/packages/enchant*.txz || exit 1
@@ -108,13 +113,13 @@ installpkg $MODULE_PATH/packages/libyaml*.txz || exit 1
 
 # xfce packages
 for package in \
-	xfce4-dev-tools \
 	libxfce4windowing \
 	libxfce4util \
 	xfconf \
 	libxfce4ui \
 	exo \
 	garcon \
+	xfce4-session \
 	xfce4-panel \
 	thunar \
 	thunar-volman \
@@ -124,7 +129,6 @@ for package in \
 	xfce4-settings \
 	xfdesktop \
 	xfwm4-gl \
-	xfce4-session \
 	xfce4-taskmanager \
 	xfce4-terminal \
 	xfce4-screenshooter \
@@ -199,8 +203,9 @@ rm -fr usr/share/Thunar
 [ "$SYSTEM_BITS" == 64 ] && find usr/lib/ -mindepth 1 -maxdepth 1 ! \( -name "python*" \) -exec rm -rf '{}' \; 2>/dev/null
 } >/dev/null 2>&1
 
-strip_clean --exceptions='libvte-*'
-strip_hard_all --exceptions='libvte-*'
+exceptions=('libvte-*')
+strip_clean "${exceptions[@]}"
+strip_hard_all "${exceptions[@]}"
 
 ### copy cache files
 

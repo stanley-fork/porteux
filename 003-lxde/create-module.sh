@@ -2,7 +2,7 @@
 
 MODULE_NAME="003-lxde"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -73,7 +73,7 @@ done
 # lxde extras
 current_package=l3afpad
 bash $SCRIPT_PATH/extras/${current_package}/${current_package}.SlackBuild || exit 1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 # required by lxpanel
 installpkg $MODULE_PATH/packages/libwnck3*.txz || exit 1
@@ -139,8 +139,9 @@ rm -fr usr/share/Thunar
 [ "$SYSTEM_BITS" == 64 ] && find usr/lib/ -mindepth 1 -maxdepth 1 ! \( -name "python*" \) -exec rm -rf '{}' \; 2>/dev/null
 } >/dev/null 2>&1
 
-strip_clean --exceptions='libvte-*'
-strip_hard_all --exceptions='libvte-*'
+exceptions=('libvte-*')
+strip_clean "${exceptions[@]}"
+strip_hard_all "${exceptions[@]}"
 
 ### copy cache files
 

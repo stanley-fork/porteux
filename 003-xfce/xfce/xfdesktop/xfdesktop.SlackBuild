@@ -25,17 +25,15 @@ DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=a
 		done
 	fi
 })
-if [ -z "$DOWNLOADVERSION" ]; then
-	echo "Error: cannot detect latest $PRGNAM version."
-	exit 1
-fi
 VERSION=$(echo $DOWNLOADVERSION | rev | cut -d '-' -f 1 | rev)
 wget https://gitlab.xfce.org/xfce/${PRGNAM}/-/archive/${DOWNLOADVERSION}/${PRGNAM}-${DOWNLOADVERSION}.tar.gz
 
 tar xf $PRGNAM-$DOWNLOADVERSION.tar.?z*
 cd $PRGNAM-$DOWNLOADVERSION
 
-patch -p1 < $CWD/memory-leak-fixes.patch
+for i in $CWD/*.patch $CWD/${VERSION%.*}/*.patch; do
+	patch -p1 < "$i"
+done
 
 sed -i "s|subdir('tests')|#subdir('tests')|g" meson.build
 

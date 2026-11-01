@@ -2,7 +2,7 @@
 
 MODULE_NAME="001-core"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -26,10 +26,11 @@ bash $SCRIPT_PATH/download-packages.sh || exit 1
 ### critical libraries that need to be in sync with slackware repo before building
 
 installpkg $MODULE_PATH/packages/glib2*.txz || exit 1
+installpkg $MODULE_PATH/packages/icu4c*.txz || exit 1
 installpkg $MODULE_PATH/packages/libxml2*.txz || exit 1
 installpkg $MODULE_PATH/packages/lua*.txz || exit 1
 
-installpkg $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
+[ ! -f /usr/bin/clang ] && { installpkg $MODULE_PATH/packages/llvm*.txz || exit 1; }
 rm $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
 
 ### packages outside slackware repository
@@ -61,8 +62,17 @@ for package in \
 	fastfetch \
 	7zip \
 	rpm \
+	wget2 \
 ; do
 bash $SCRIPT_PATH/extras/${package}/${package}.SlackBuild || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
+
+# common extras
+for package in \
+	gcc15-compat \
+; do
+bash $SCRIPT_PATH/../common/extras/${package}/${package}.SlackBuild || exit 1
 find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
 done
 
@@ -207,13 +217,12 @@ sed -i "s|^VERSION=.*|VERSION=\"${PORTEUX_VERSION}\"|" $MODULE_PATH/packages/etc
 sed -i "s|^VERSION_ID=.*|VERSION_ID=${PORTEUX_VERSION}|" $MODULE_PATH/packages/etc/os-release
 sed -i "s|^PRETTY_NAME=.*|PRETTY_NAME=\"PorteuX ${PORTEUX_VERSION} ${PORTEUX_BUILD}\"|" $MODULE_PATH/packages/etc/os-release
 sed -i "s|^CPE_NAME=.*|CPE_NAME=\"cpe:/o:porteux:porteux_linux:${PORTEUX_VERSION}\"|" $MODULE_PATH/packages/etc/os-release
-sed -i "0,/PorteuX/s|PorteuX.*|PorteuX v${PORTEUX_VERSION}|" $SCRIPT_PATH/../iso/boot/syslinux/help.txt
+[ "$PORTEUX_RELEASE_VERSION" ] && sed -i "0,/PorteuX/s|PorteuX.*|PorteuX v${PORTEUX_RELEASE_VERSION}|" $SCRIPT_PATH/../iso/boot/syslinux/help.txt
 
 ### set permissions
 
 cd $MODULE_PATH/packages || exit 1
 
-chmod 644 etc/rc.d/rc.bluetooth
 chmod 644 etc/rc.d/rc.crond
 chmod 644 etc/rc.d/rc.fuse3
 chmod 644 etc/rc.d/rc.inet1
@@ -235,6 +244,7 @@ copy_to_multilanguage
 cd $MODULE_PATH/packages/ || exit 1
 
 {
+rm etc/default/networkmanager
 rm etc/init.d
 rm etc/motd
 rm etc/termcap
@@ -248,7 +258,6 @@ rm usr/lib${SYSTEM_BITS}/libqgpgme.so*
 rm usr/libexec/samba/rpcd_*
 rm usr/sbin/make-kernel-backup
 rm usr/share/i18n/locales/C
-rm usr/share/kbd/keymaps/i386/qwertz/sr-latin.map.gz
 rm usr/share/pixmaps/wpa_gui.png
 rm var/db/Makefile
 
@@ -296,7 +305,6 @@ rm -fr usr/share/terminfo/[A-Z]
 rm -fr usr/share/terminfo/b
 rm -fr usr/share/terminfo/c
 rm -fr usr/share/terminfo/e
-rm -fr usr/share/terminfo/f
 rm -fr usr/share/terminfo/g
 rm -fr usr/share/terminfo/h
 rm -fr usr/share/terminfo/i
@@ -307,8 +315,6 @@ rm -fr usr/share/terminfo/n
 rm -fr usr/share/terminfo/o
 rm -fr usr/share/terminfo/p
 rm -fr usr/share/terminfo/q
-rm -fr usr/share/terminfo/s
-rm -fr usr/share/terminfo/t
 rm -fr usr/share/terminfo/u
 rm -fr usr/share/terminfo/w
 rm -fr usr/share/terminfo/z
@@ -321,8 +327,9 @@ find usr/lib${SYSTEM_BITS}/python* -type d -name 'test' -prune -exec rm -rf {} +
 find usr/lib${SYSTEM_BITS}/python* -type d -name 'tests' -prune -exec rm -rf {} +
 } >/dev/null 2>&1
 
-strip_clean --exceptions='ld-linux*,libc-*,libgcc_s*,libldap*,libpthread*,libstdc++*'
-strip_hard_all --exceptions='ld-linux*,libc-*,libgcc_s*,libldap*,libpthread*,libstdc++*'
+exceptions=('ld-linux*' 'libc.so.*' 'libgcc_s*' 'libldap*' 'libpthread*' 'libstdc++*')
+strip_clean "${exceptions[@]}"
+strip_hard_all "${exceptions[@]}"
 
 ### copy cache files
 

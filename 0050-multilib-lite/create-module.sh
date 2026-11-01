@@ -4,7 +4,7 @@ MODULE_NAME="0050-multilib-lite"
 
 export SYSTEM_BITS=
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -44,12 +44,14 @@ strip_package llvm \
 	usr/lib/libLLVM*.so*
 
 current_package=mesa
-rm -rf $MODULE_PATH/${current_package}
+rm -rf "${MODULE_PATH:?}/${current_package}"
 mkdir $MODULE_PATH/${current_package} && cd $MODULE_PATH/${current_package} || exit 1
-mv $MODULE_PATH/packages/${current_package}-[0-9]* .
+rm -f $MODULE_PATH/packages/${current_package}-[0-9]*_stripped.t?z
+mv $MODULE_PATH/packages/${current_package}-[0-9]* . || exit 1
 package_file_name=$(ls ${current_package}-[0-9]*.t?z | head -n1)
 package_file_name=${package_file_name%.*}
-ROOT=./ installpkg ${current_package}*.txz && rm ${current_package}*.txz
+ROOT=./ installpkg ${current_package}*.txz || exit 1
+rm ${current_package}*.txz
 rm -fr etc/OpenCL
 rm usr/lib${SYSTEM_BITS}/dri/i830*
 rm usr/lib${SYSTEM_BITS}/dri/i965*
@@ -66,7 +68,7 @@ mkdir ${current_package}-stripped
 find . -mindepth 1 -maxdepth 1 ! -name "${current_package}-stripped" -exec mv -t "${current_package}-stripped" {} +
 cd ${current_package}-stripped || exit 1
 makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${package_file_name}_stripped.txz > /dev/null 2>&1 || { echo "Error: failed to create ${package_file_name}_stripped.txz" >&2; exit 1; }
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 strip_package pcre2 \
 	lib/libpcre2-8.so*
@@ -80,6 +82,15 @@ strip_package pulseaudio \
 strip_package vulkan-sdk \
 	usr/lib/libSPIRV-Tools.so* \
 	usr/lib/libvulkan.so*
+
+### common extras
+
+for package in \
+	gcc15-compat \
+; do
+bash $SCRIPT_PATH/../common/extras/${package}/${package}.SlackBuild || exit 1
+find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
+done
 
 ### fake root
 
@@ -117,14 +128,14 @@ rm -fr $MODULE_PATH/packages/var/lib/dbus
 rm -fr $MODULE_PATH/packages/var/run
 
 find $MODULE_PATH/packages -maxdepth 1 -type f -delete
-find $MODULE_PATH/packages/sbin \( -type f -o -type l \) ! \( -name "ldconfig" -o -name "sln" \) -delete
-find $MODULE_PATH/packages/bin \( -type f -o -type l \) ! -name "sln" -delete
+find $MODULE_PATH/packages/sbin \( -type f -o -type l \) -delete
+find $MODULE_PATH/packages/bin \( -type f -o -type l \) -delete
 find $MODULE_PATH/packages/usr/share -mindepth 1 -maxdepth 1 -type d ! -name "vulkan" -exec rm -rf {} +
 find $MODULE_PATH/packages/usr -mindepth 1 -maxdepth 1 -type d ! -name "lib" ! -name "share" -exec rm -rf {} +
 find $MODULE_PATH/packages/usr/lib/locale -mindepth 1 -maxdepth 1 -type d ! -name "en_US.utf8" -exec rm -rf {} +
 } >/dev/null 2>&1
 
-strip_clean --exceptions='*/dri/*,libc-*,libc.so*,libgallium*,libvulkan*,libX11.so*'
+strip_clean '*/dri/*' 'libc-*' 'libc.so*' 'libgallium*' 'libvulkan*' 'libX11.so*'
 strip_hard_exec
 
 ### finalize

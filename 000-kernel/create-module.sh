@@ -2,16 +2,17 @@
 
 MODULE_NAME="000-kernel"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
+source "$BUILDER_UTILS_PATH/generic-strip.sh"
 source "$BUILDER_UTILS_PATH/helper.sh"
 source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 elevate_if_needed "$0" "$@"
 
-if [ ! -f ${SYSTEM_BITS}bit.config ]; then
+if [ ! -f ${SCRIPT_PATH}/${SYSTEM_BITS}bit.config ]; then
 	echo "File ${SYSTEM_BITS}bit.config is required in this folder." && exit 1
 fi
 
@@ -22,14 +23,15 @@ fi
 IFS='.-' read -r KERNEL_MAJOR_VERSION KERNEL_MINOR_VERSION KERNEL_PATCH_VERSION <<< "$KERNEL_VERSION"
 CRIPPLED_MODULE_NAME="06-crippled-sources-${KERNEL_VERSION}"
 
-if [ ${ONLY_HEADERS:-no} = "yes" ]; then
-	export MODULE_PATH="${MODULE_PATH}-headers"
-fi
-
 ### create module folder
 
-rm -fr "${MODULE_PATH:?MODULE_PATH is unset}"
-mkdir -p $MODULE_PATH/packages > /dev/null 2>&1
+if [ ${ONLY_HEADERS:-no} = "yes" ]; then
+	export MODULE_PATH="$PORTEUX_BUILDER_PATH/05-devel"
+	mkdir -p $MODULE_PATH/packages > /dev/null 2>&1
+else
+	rm -fr "${MODULE_PATH:?MODULE_PATH is unset}"
+	mkdir -p $MODULE_PATH/packages > /dev/null 2>&1
+fi
 
 ### download packages from slackware repository
 
@@ -40,9 +42,9 @@ fi
 ### set compiler and linker
 
 if [ ${CLANG:-no} = "yes" ]; then
-	installpkg $MODULE_PATH/packages/libxml2*.txz > /dev/null 2>&1
+	[ ! -f /usr/bin/clang ] && { installpkg $MODULE_PATH/packages/libxml2*.txz || exit 1; }
 	rm $MODULE_PATH/packages/libxml2*.txz > /dev/null 2>&1
-	installpkg $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
+	[ ! -f /usr/bin/clang ] && { installpkg $MODULE_PATH/packages/llvm*.txz || exit 1; }
 	rm $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
 
 	COMPILER="Clang"
@@ -69,18 +71,26 @@ LINK_PARAMS=$(echo "$LINK_PARAMS" | sed \
 
 echo -e "Building kernel ${KERNEL_VERSION} using ${COMPILER}...\n"
 
-cp ${SCRIPT_PATH}/kernel-firmware*.txz ${MODULE_PATH}/packages 2>/dev/null
+if [ ${ONLY_HEADERS:-no} != "yes" ]; then
+	cp ${SCRIPT_PATH}/kernel-firmware*.txz ${MODULE_PATH}/packages 2>/dev/null
+fi
 
 echo "Downloading kernel source code..."
-kernel_source_archive=$(ls ${SCRIPT_PATH}/linux-${KERNEL_VERSION}.tar.?z 2>/dev/null | head -n1)
+kernel_source_archive=$(ls "${SCRIPT_PATH}"/linux-"${KERNEL_VERSION}".tar.?z 2>/dev/null | head -n1)
 if [ -z "$kernel_source_archive" ]; then
-	wget -P ${MODULE_PATH} https://mirrors.edge.kernel.org/pub/linux/kernel/v${KERNEL_MAJOR_VERSION}.x/linux-${KERNEL_VERSION}.tar.xz > /dev/null 2>&1 || { echo "Failed to download kernel source code."; exit 1; }
-	kernel_source_archive=${MODULE_PATH}/linux-${KERNEL_VERSION}.tar.xz
+	if [[ "$KERNEL_VERSION" == *-rc* ]]; then
+		kernel_source_archive=${SCRIPT_PATH}/linux-${KERNEL_VERSION}.tar.gz
+		kernel_source_url=https://git.kernel.org/torvalds/t/linux-${KERNEL_VERSION}.tar.gz
+	else
+		kernel_source_archive=${SCRIPT_PATH}/linux-${KERNEL_VERSION}.tar.xz
+		kernel_source_url=https://mirrors.edge.kernel.org/pub/linux/kernel/v${KERNEL_MAJOR_VERSION}.x/linux-${KERNEL_VERSION}.tar.xz
+	fi
+	wget -O "${kernel_source_archive}.part" "$kernel_source_url" > /dev/null 2>&1 || { rm -f "${kernel_source_archive}.part"; echo "Failed to download kernel source code."; exit 1; }
+	mv "${kernel_source_archive}.part" "${kernel_source_archive}" || exit 1
 fi
 
 echo "Extracting kernel source code..."
 tar xf "$kernel_source_archive" -C ${MODULE_PATH}
-rm -f ${MODULE_PATH}/linux-${KERNEL_VERSION}.tar.?z
 
 echo "Copying .config file..."
 cp ${SCRIPT_PATH}/${SYSTEM_BITS}bit.config ${MODULE_PATH}/linux-${KERNEL_VERSION}/.config || exit 1
@@ -105,7 +115,7 @@ if [ ${AUFS:-no} = "yes" ]; then
 	rm -fr ../aufs_sources
 elif [ ${OVERLAYFS:-no} = "yes" ]; then
 	echo "Patching OverlayFS dynamic layers support..."
-	patch -N -p1 < ${SCRIPT_PATH}/0002-overlayfs-dynamic-layers.patch > /dev/null 2>&1 || { echo "Failed to apply OverlayFS dynamic layers patch."; exit 1; }
+	patch -N -p1 < ${SCRIPT_PATH}/overlayfs-dynamic-layers.patch > /dev/null 2>&1 || { echo "Failed to apply OverlayFS dynamic layers patch."; exit 1; }
 	sed -i "s|CONFIG_OVERLAY_FS_METACOPY=y|# CONFIG_OVERLAY_FS_METACOPY is not set|" .config
 else
 	echo "Downloading aufs-ng..."
@@ -121,22 +131,38 @@ fi
 echo "Building kernel headers..."
 current_package=kernel-headers
 KERNEL_SOURCE=${MODULE_PATH}/linux-${KERNEL_VERSION} sh ${SCRIPT_PATH}/extras/${current_package}/${current_package}.SlackBuild || exit 1
-mkdir -p ${MODULE_PATH}/../05-devel/packages
-mv ${MODULE_PATH}/packages/${current_package}*.txz ${MODULE_PATH}/../05-devel/packages
 rm -fr $MODULE_PATH/${current_package} || exit 1
 
 if [ ${ONLY_HEADERS:-no} = "yes" ]; then
-	cd $MODULE_PATH/.. && rm -fr ${MODULE_PATH}
+	cd $MODULE_PATH && rm -fr ${MODULE_PATH}/linux-${KERNEL_VERSION}
 	exit 0
 fi
+
+mkdir -p ${PORTEUX_BUILDER_PATH}/05-devel/packages
+mv ${MODULE_PATH}/packages/${current_package}*.txz ${PORTEUX_BUILDER_PATH}/05-devel/packages
 
 cd $MODULE_PATH/linux-${KERNEL_VERSION} || exit 1
 
 echo "Patching dead code elimination support..."
 patch -N -p1 < ${SCRIPT_PATH}/0001-dead-code-elimination.patch > /dev/null 2>&1 || { echo "Failed to apply dead code elimination patch."; exit 1; }
+sed -i 's|^\t\t\*(\.smp_locks)$|\t\tKEEP(*(.smp_locks))|' arch/x86/kernel/vmlinux.lds.S
 
 echo "Patching ntfs colon character support..."
-patch -N -p1 < ${SCRIPT_PATH}/0003-ntfs-allow-colon-in-filenames.patch > /dev/null 2>&1 || { echo "Failed to apply ntfs colon support patch."; exit 1; }
+patch -N -p1 < ${SCRIPT_PATH}/0004-ntfs-allow-colon-in-filenames.patch > /dev/null 2>&1 || { echo "Failed to apply ntfs colon support patch."; exit 1; }
+
+echo "Patching zstd..."
+patch -N -p1 < ${SCRIPT_PATH}/0002-zstd-add-fallback-aliases-for-disabled-BMI2-variants.patch > /dev/null 2>&1 || { echo "Failed to apply zstd patch."; exit 1; }
+patch -N -p1 < ${SCRIPT_PATH}/0002-zstd-use-cpu_feature_enabled-for-BMI2-dispatch.patch > /dev/null 2>&1 || { echo "Failed to apply zstd patch."; exit 1; }
+patch -N -p1 < ${SCRIPT_PATH}/0002-zstd-btrfs-avoid-a-copy-in-zstd_decompress_bio.patch > /dev/null 2>&1 || { echo "Failed to apply zstd patch."; exit 1; }
+
+echo "Patching MemAvailable..."
+patch -N -p1 < ${SCRIPT_PATH}/0003-mm-count-GPU-pool-pages-in-MemAvailable.patch > /dev/null 2>&1 || { echo "Failed to apply MemAvailable patch."; exit 1; }
+
+echo "Patching file read optimization..."
+patch -N -p1 < ${SCRIPT_PATH}/0005-fs-avoid-spurious-dentry-ref-unref-cycle-on-open.patch > /dev/null 2>&1 || { echo "Failed to apply file read patch."; exit 1; }
+
+echo "Patching lockless page cache reads..."
+patch -N -p1 < ${SCRIPT_PATH}/0006-mm-read-the-page-cache-without-folio-references.patch > /dev/null 2>&1 || { echo "Failed to apply lockless page cache reads patch."; exit 1; }
 
 echo "Patching missing firmware..."
 # fixed in 7.2.x but let's keep the fix for compatibility with old kernels just in case
@@ -167,7 +193,7 @@ sed -i "s|le32_encode_bits(cmd->src, RTW89_H2C_CMD_OFLD_W0_SRC)|le32_encode_bits
 echo "Building vmlinuz (this may take a while)..."
 sed -i "s|select DEBUG_KERNEL||g" init/Kconfig # this allows CONFIG_DEBUG_KERNEL to be disabled
 make olddefconfig > /dev/null 2>&1 || { echo "Failed to update kernel config."; exit 1; }
-make -j${NUMBER_THREADS} KBUILD_LDFLAGS="$LINK_PARAMS" LDFLAGS_MODULE="$LINK_PARAMS" KCFLAGS="$BUILD_PARAMS" ${EXTRA_FLAGS} || { echo "Failed to build kernel."; exit 1; }
+make -j${NUMBER_THREADS} LDFLAGS_MODULE="$LINK_PARAMS" KCFLAGS="$BUILD_PARAMS" ${EXTRA_FLAGS} || { echo "Failed to build kernel."; exit 1; }
 cp -f arch/x86/boot/bzImage $MODULE_PATH/vmlinuz
 
 echo "Installing modules..."
@@ -175,8 +201,8 @@ make -j${NUMBER_THREADS} INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=../ modules_instal
 
 cd $MODULE_PATH || exit 1
 
-kernel_modules_folder=$(ls $MODULE_PATH/lib/modules/)
-rm $MODULE_PATH/lib/modules/$kernel_modules_folder/build > /dev/null 2>&1
+kernel_modules_folder=$(basename "$MODULE_PATH"/lib/modules/*/)
+rm "$MODULE_PATH/lib/modules/$kernel_modules_folder/build" > /dev/null 2>&1
 
 echo "Installing firmwares..."
 current_package=kernel-firmware
@@ -188,6 +214,10 @@ sh install/doinst.sh > /dev/null 2>&1 || { echo "Failed to install kernel firmwa
 # manually copy intel bluetooth firmwares until kernel fixes drivers/bluetooth/btintel.c
 mkdir -p ${MODULE_PATH}/lib/firmware/intel > /dev/null 2>&1
 cp lib/firmware/intel/ibt* ${MODULE_PATH}/lib/firmware/intel
+
+for runtime_firmware in lib/firmware/qca lib/firmware/brcm/*.hcd lib/firmware/cirrus lib/firmware/intel/ish; do
+	cp -ru --parents "$runtime_firmware" ${MODULE_PATH} > /dev/null 2>&1
+done
 
 modules_dependencies=$(ls $MODULE_PATH/lib/modules/*/modules.dep)
 modules_path=${modules_dependencies%/modules.dep}
@@ -263,10 +293,7 @@ ln -sf /usr/src/linux ${MODULE_PATH}/${CRIPPLED_MODULE_NAME}/lib/modules/$kernel
 
 # strip crippled
 {
-mv ${CRIPPLED_LINUX_PATH}/arch/x86 ${CRIPPLED_SOURCE_PATH}
-rm -rf ${CRIPPLED_LINUX_PATH}/arch
-mkdir ${CRIPPLED_LINUX_PATH}/arch
-mv ${CRIPPLED_SOURCE_PATH}/x86 ${CRIPPLED_LINUX_PATH}/arch/
+find ${CRIPPLED_LINUX_PATH}/arch -mindepth 1 -maxdepth 1 ! -name x86 -exec rm -rf {} +
 
 rm -rf ${CRIPPLED_LINUX_PATH}/arch/x86/boot/bzImage
 rm -rf ${CRIPPLED_LINUX_PATH}/arch/x86/boot/compressed/vmlinux
@@ -286,17 +313,16 @@ find ${CRIPPLED_LINUX_PATH}/scripts -xtype l -delete
 
 mv ${CRIPPLED_LINUX_PATH}/config ${CRIPPLED_LINUX_PATH}/.config
 
-find ${CRIPPLED_SOURCE_PATH} -type f -perm -u+x -print0 | xargs -0 -r strip --strip-all -R .comment -R .eh_frame -R .eh_frame_hdr -R .eh_frame_ptr -R .jcr -R .note -R .note.ABI-tag -R .note.gnu.build-id -R .note.gnu.gold-version -R .note.GNU-stack
+find ${CRIPPLED_SOURCE_PATH} -type f -perm -u+x | strip_files --strip-all -R '.eh_frame*' -R .jcr
 } >/dev/null 2>&1
 
 make_module ${MODULE_PATH}/${CRIPPLED_MODULE_NAME} ${CRIPPLED_MODULE_NAME}-${build_date}.xzm > /dev/null || { echo "Error: failed to create crippled kernel module." >&2; exit 1; }
 
 echo "Cleaning up..."
-rm -fr ${MODULE_PATH}/kernel-firmware > /dev/null 2>&1 
-rm -fr ${MODULE_PATH}/${MODULE_NAME} > /dev/null 2>&1
-rm -fr ${MODULE_PATH}/${CRIPPLED_MODULE_NAME} > /dev/null 2>&1
-rm -fr ${MODULE_PATH}/firmware > /dev/null 2>&1
-rm -fr ${MODULE_PATH}/packages > /dev/null 2>&1
-rm -fr ${MODULE_PATH}/sof* > /dev/null 2>&1
+rm -fr "${MODULE_PATH:?}/kernel-firmware" > /dev/null 2>&1 
+rm -fr "${MODULE_PATH:?}/${MODULE_NAME}" > /dev/null 2>&1
+rm -fr "${MODULE_PATH:?}/${CRIPPLED_MODULE_NAME}" > /dev/null 2>&1
+rm -fr "${MODULE_PATH:?}/packages" > /dev/null 2>&1
+rm -fr "${MODULE_PATH:?}"/sof* > /dev/null 2>&1
 
 echo "Finished successfully."

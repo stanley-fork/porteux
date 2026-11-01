@@ -2,7 +2,7 @@
 
 MODULE_NAME="05-devel"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -23,9 +23,7 @@ cd $MODULE_PATH || exit 1
 bash $SCRIPT_PATH/download-packages.sh || exit 1
 
 if ! ls $MODULE_PATH/packages/kernel-headers*.txz 1> /dev/null 2>&1; then
-	cd ${SCRIPT_PATH}/../000-kernel || exit 1
-	ONLY_HEADERS=yes sh create-module.sh || exit 1
-	cd $MODULE_PATH || exit 1
+	ONLY_HEADERS=yes bash ${SCRIPT_PATH}/../000-kernel/create-module.sh "$1" || exit 1
 fi
 
 ### fake root

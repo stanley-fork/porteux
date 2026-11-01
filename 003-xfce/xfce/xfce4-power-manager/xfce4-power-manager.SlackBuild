@@ -25,10 +25,6 @@ DOWNLOADVERSION=$(curl -s https://gitlab.xfce.org/xfce/${PRGNAM}/-/tags?format=a
 		done
 	fi
 })
-if [ -z "$DOWNLOADVERSION" ]; then
-	echo "Error: cannot detect latest $PRGNAM version."
-	exit 1
-fi
 VERSION=$(echo $DOWNLOADVERSION | rev | cut -d '-' -f 1 | rev)
 wget https://gitlab.xfce.org/xfce/${PRGNAM}/-/archive/${DOWNLOADVERSION}/${PRGNAM}-${DOWNLOADVERSION}.tar.gz
 
@@ -44,8 +40,7 @@ if [ -f meson.build ]; then
 		--libdir=/usr/lib${SYSTEM_BITS} \
 		--libexecdir=/usr/libexec \
 		--sysconfdir=/etc \
-		--localstatedir=/var \
-		-Dpolkit=disabled
+		--localstatedir=/var
 
 	DESTDIR=$PKG ninja -j${NUMBER_THREADS} install
 else
@@ -60,7 +55,6 @@ else
 		--enable-lto \
 		--enable-wayland \
 		--disable-network-manager \
-		--disable-polkit \
 		--build=$ARCH-porteux-linux
 
 	make -j${NUMBER_THREADS} install-strip DESTDIR=$PKG

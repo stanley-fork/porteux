@@ -2,7 +2,7 @@
 
 MODULE_NAME="002-gui"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -95,7 +95,7 @@ for package in \
 	librsvg \
 ; do
 bash $SCRIPT_PATH/deps/${package}/${package}.SlackBuild || exit 1
-installpkg $MODULE_PATH/packages/${package}*.txz || exit 1
+installpkg $MODULE_PATH/packages/${package}-[0-9]*.txz || exit 1
 find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
 done
 
@@ -130,7 +130,8 @@ strip_package llvm \
 
 current_package=mesa
 mkdir $MODULE_PATH/${current_package} && cd $MODULE_PATH/${current_package} || exit 1
-mv $MODULE_PATH/packages/${current_package}-[0-9]* .
+rm -f $MODULE_PATH/packages/${current_package}-[0-9]*_stripped.t?z
+mv $MODULE_PATH/packages/${current_package}-[0-9]* . || exit 1
 package_file_name=$(ls ${current_package}-[0-9]*.t?z | head -n1)
 package_file_name=${package_file_name%.*}
 ROOT=./ installpkg ${current_package}*.txz || exit 1
@@ -151,7 +152,7 @@ mkdir ${current_package}-stripped
 find . -mindepth 1 -maxdepth 1 ! -name "${current_package}-stripped" -exec mv -t "${current_package}-stripped" {} +
 cd ${current_package}-stripped || exit 1
 makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${package_file_name}_stripped.txz > /dev/null 2>&1 || exit 1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 strip_package dejavu-fonts-ttf \
 	usr/share/fonts/TTF/DejaVuSans-Bold.ttf \
@@ -186,7 +187,9 @@ strip_package vulkan-sdk \
 	usr/include/vk_video \
 	usr/include/vulkan/* \
 	usr/lib${SYSTEM_BITS}/cmake \
+	usr/lib${SYSTEM_BITS}/libglslang*.so* \
 	usr/lib${SYSTEM_BITS}/libSPIRV-Tools.so* \
+	usr/lib${SYSTEM_BITS}/libSPIRV-Tools-opt.so* \
 	usr/lib${SYSTEM_BITS}/libvulkan.so* \
 	usr/lib${SYSTEM_BITS}/pkgconfig/SPIRV-Tools* \
 	usr/lib${SYSTEM_BITS}/pkgconfig/vulkan.pc
@@ -201,7 +204,7 @@ install_additional_packages
 
 ### fix applications shortcuts
 
-sed -i "s|^Exec=.*|Exec=psu /usr/bin/gparted %f|g" $MODULE_PATH/packages/usr/share/applications/gparted.desktop
+sed -i "s|^Exec=.*|Exec=psu /usr/bin/gparted %f|g" $MODULE_PATH/packages/usr/share/applications/gparted.desktop || exit 1
 
 ### add xzm to freedesktop.org.xml
 
@@ -322,8 +325,9 @@ find usr/share/icons/hicolor -name 'image-vnd.djvu.png' -delete
 find $MODULE_PATH/packages/usr/lib${SYSTEM_BITS}/dri -name '*.la' -delete
 
 mv $MODULE_PATH/packages/usr/share/sounds $MODULE_PATH/
-strip_clean --exceptions='*/dri/*,gpartedbin,libgallium*,libunwind*,libvulkan*,libX11.so*'
-strip_hard_all --exceptions='*/dri/*,gpartedbin,libgallium*,libunwind*,libvulkan*,libX11.so*'
+exceptions=('*/dri/*' 'gpartedbin' 'libgallium*' 'libunwind*' 'libvulkan*' 'libX11.so*')
+strip_clean "${exceptions[@]}"
+strip_hard_all "${exceptions[@]}"
 mv $MODULE_PATH/sounds $MODULE_PATH/packages/usr/share
 
 ### copy cache files

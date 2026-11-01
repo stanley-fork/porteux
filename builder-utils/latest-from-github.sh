@@ -1,11 +1,13 @@
 #!/bin/bash
 
+ODD_MINOR_RELEASES='^v?[0-9]+\.[0-9]*[13579]\.'
+
 download_master_from_github() {
 	local owner="$1"
 	local repo="$2"
 	local branch="${3:-master}"
 	local tarball="${repo}-${branch}.tar.gz"
-	wget "https://github.com/${owner}/${repo}/archive/refs/heads/${branch}.tar.gz" -O "$tarball" || return 1
+	wget "https://github.com/${owner}/${repo}/archive/refs/heads/${branch}.tar.gz" -O "$tarball" >&2 || return 1
 	tar xf "$tarball" || return 1
 	date -r "${repo}-${branch}" +%Y%m%d
 }
@@ -14,9 +16,14 @@ get_latest_versions_tag_from_github() {
 	local repository="$1"
 	local project="$2"
 	local filter_out_version="$3"
-	local versions
-	versions=$(curl -s https://github.com/${repository}/${project}/tags/ | grep -oP "(?<=/${repository}/${project}/archive/refs/tags/)[^\"]+(?=\.tar\.gz)" | uniq | grep -Ev "alpha|beta|rc[0-9]")
-	[ -n "$filter_out_version" ] && versions=$(echo "$versions" | grep -Ev "$filter_out_version")
+	local versions tags after page
+	for page in {1..5}; do
+		tags=$(curl -s --compressed "https://github.com/${repository}/${project}/tags${after:+?after=$after}" | grep -oP "(?<=/${repository}/${project}/archive/refs/tags/)[^\"]+(?=\.tar\.gz)" | uniq)
+		[ -z "$tags" ] && break
+		versions=$(grep -Ev "alpha|beta|rc[0-9]${filter_out_version:+|$filter_out_version}" <<< "$tags")
+		[ -n "$versions" ] && break
+		after=${tags##*$'\n'}
+	done
 	echo "$versions" | sort -V -r | head -n 10
 }
 
@@ -35,24 +42,33 @@ download_latest_from_github() {
 		return 1
 	fi
 	version=${tag##*/}
-	version=${version//[^0-9._]/}
+	if [[ $version =~ [0-9]+([._][0-9]+)+ ]]; then
+		version=${BASH_REMATCH[0]}
+	else
+		version=${version//[^0-9._]/}
+	fi
+	version=${version//_/.}
 	release_url="https://github.com/${repository}/${project}/releases/download/${tag}/${project}-${version}.tar"
 	tag_url="https://github.com/${repository}/${project}/archive/refs/tags/${tag}.tar.gz"
 
 	local url wget_output
 	for url in "${release_url}.xz" "${release_url}.gz" "${tag_url}"; do
-		content_disposition=""
 		wget_output=$(wget --server-response --content-disposition "$url" 2>&1) || continue
 		content_disposition=$(echo "$wget_output" | grep -i "content-disposition:")
-		[ -n "$content_disposition" ] && break
+		if [ -n "$content_disposition" ]; then
+			filename=${content_disposition#*filename=}
+			filename=${filename//[\"$'\r']/}
+		else
+			filename=${project}-${version}.tar.${url##*.tar.}
+			[ "${url##*/}" = "$filename" ] || mv "${url##*/}" "$filename"
+		fi
+		break
 	done
 
-	if [ -z "$content_disposition" ]; then
+	if [ -z "$filename" ]; then
 		echo "Error: cannot download ${project} ${version} from github" >&2
 		return 1
 	fi
-
-	filename=${content_disposition#*filename=}
 
 	echo "$filename $version"
 }

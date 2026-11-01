@@ -2,7 +2,7 @@
 
 MODULE_NAME="003-cosmic"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -39,7 +39,6 @@ for package in \
 	adw-gtk3 \
 	audacious-plugins \
 	ffmpegthumbnailer \
-	gpicview \
 ; do
 bash $SCRIPT_PATH/../common/extras/${package}/${package}.SlackBuild || exit 1
 find $MODULE_PATH -mindepth 1 -maxdepth 1 ! \( -name "packages" \) -exec rm -rf '{}' \; 2>/dev/null
@@ -53,10 +52,10 @@ installpkg $MODULE_PATH/packages/libhandy*.txz || exit 1
 
 current_package=file-roller
 bash $SCRIPT_PATH/../common/extras/${current_package}/${current_package}.SlackBuild || exit 1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 # required from now on
-installpkg $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
+[ ! -f /usr/bin/clang ] && { installpkg $MODULE_PATH/packages/llvm*.txz || exit 1; }
 rm $MODULE_PATH/packages/llvm* > /dev/null 2>&1
 
 install_rust_toolchain
@@ -81,9 +80,7 @@ done
 
 # required by cosmic-reader
 installpkg $MODULE_PATH/packages/leptonica*.txz || exit 1
-rm $MODULE_PATH/packages/leptonica*.txz
 installpkg $MODULE_PATH/packages/tesseract*.txz || exit 1
-rm $MODULE_PATH/packages/tesseract*.txz
 
 # cosmic packages
 for package in \
@@ -108,6 +105,7 @@ for package in \
 	cosmic-settings \
 	cosmic-settings-daemon \
 	cosmic-term \
+	cosmic-viewer \
 	cosmic-workspaces-epoch \
 	xdg-desktop-portal-cosmic \
 ; do
@@ -146,6 +144,10 @@ copy_to_multilanguage
 ### module clean up
 
 cd $MODULE_PATH/packages/ || exit 1
+
+{
+rm -fr usr/bin
+} >/dev/null 2>&1
 
 strip_clean
 strip_hard_all

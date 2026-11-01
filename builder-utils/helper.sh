@@ -4,7 +4,7 @@ copy_to_devel() {
 	mkdir -p "$PORTEUX_BUILDER_PATH"/05-devel/packages
 	cd "$MODULE_PATH"/packages || exit 1
 	find . -regex '.*\.\(a\|c\|cmake\|deps\|gir\|h\|hpp\|hxx\|in\|m4\|make\|mk\|o\|pc\|prl\|pyi\|spec\|vapi\)$' -exec cp --parents -t "$PORTEUX_BUILDER_PATH"/05-devel/packages {} +
-	cp -r --parents usr/lib/python*/site-packages/*-info "$PORTEUX_BUILDER_PATH"/05-devel/packages > /dev/null 2>&1
+	cp -r --parents usr/lib*/python*/site-packages/*-info "$PORTEUX_BUILDER_PATH"/05-devel/packages > /dev/null 2>&1
 	cp -r --parents usr/share/gettext/its "$PORTEUX_BUILDER_PATH"/05-devel/packages > /dev/null 2>&1
 	cp -r --parents usr/share/glib-2.0/codegen "$PORTEUX_BUILDER_PATH"/05-devel/packages > /dev/null 2>&1
 }
@@ -55,7 +55,7 @@ finalize() {
 	make_module "$MODULE_PATH"/packages/ "$MODULE_PATH"/$MODULE_NAME-$PORTEUX_BUILD-$build_date.xzm || { echo "Error: failed to create module $MODULE_NAME." >&2; exit 1; }
 
 	# script clean up
-	rm -fr "$MODULE_PATH"/packages/
+	rm -fr "${MODULE_PATH:?}"/packages/
 }
 
 is_root() {
@@ -67,7 +67,7 @@ elevate_if_needed() {
 	local script="$1"
 	shift
 	echo "Please enter admin's password below:"
-	su -c "$(printf '%q ' "$(realpath "$script")" "$@")"
+	su -c "$(printf '%q ' bash "$(realpath "$script")" "$@")"
 	exit
 }
 
@@ -77,6 +77,7 @@ strip_package() {
 	rm -rf "$workdir"
 	mkdir -p "$workdir" && cd "$workdir" || { echo "strip_package: cannot enter $workdir" >&2; exit 1; }
 
+	rm -f "$MODULE_PATH"/packages/"${package}"-[0-9]*_stripped.t?z
 	mv "$MODULE_PATH"/packages/"${package}"-[0-9]* . || { echo "strip_package: $package package not found in $MODULE_PATH/packages" >&2; exit 1; }
 
 	local pkg_file out_base

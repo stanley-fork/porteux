@@ -2,17 +2,18 @@
 
 MODULE_NAME="003-lxqt"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
 source "$BUILDER_UTILS_PATH/cache-files.sh"
 source "$BUILDER_UTILS_PATH/generic-strip.sh"
 source "$BUILDER_UTILS_PATH/helper.sh"
+source "$BUILDER_UTILS_PATH/latest-from-github.sh"
 
 elevate_if_needed "$0" "$@"
 
-LATEST_VERSION=$(curl -s https://github.com/lxqt/lxqt-about/tags/ | grep "/lxqt/lxqt-about/releases/tag/" | grep -oP "(?<=/lxqt/lxqt-about/releases/tag/)[^\"]+" | uniq | grep -Ev "alpha|beta|rc[0-9]" | sort -Vr | head -1)
+LATEST_VERSION=$(get_latest_version_tag_from_github lxqt lxqt-about)
 [ "$LATEST_VERSION" ] || { echo "Error: could not detect LXQt version." >&2; exit 1; }
 echo -e "Building LXQt ${LATEST_VERSION} based on Slackware ${SLACKWARE_VERSION} ${ARCH}...\n"
 MODULE_NAME="$MODULE_NAME-${LATEST_VERSION}"
@@ -64,7 +65,7 @@ strip_package qt6 \
 
 # required by xpdf
 current_package=ghostscript-fonts-std
-rm -rf $MODULE_PATH/${current_package}
+rm -rf "${MODULE_PATH:?}/${current_package}"
 mkdir $MODULE_PATH/${current_package} && cd $MODULE_PATH/${current_package} || exit 1
 mv $MODULE_PATH/packages/${current_package}-[0-9]* . || exit 1
 package_file_name=$(ls * -a | rev | cut -d . -f 2- | rev)
@@ -90,7 +91,7 @@ mkdir ghostscript && cd ghostscript || exit 1
 ln -s ../fonts/Type1 fonts || exit 1
 cd $MODULE_PATH/${current_package}/${current_package}-stripped || exit 1
 makepkg ${MAKEPKG_FLAGS} $MODULE_PATH/packages/${package_file_name}_stripped.txz > /dev/null 2>&1 || exit 1
-rm -fr $MODULE_PATH/${current_package} && cd $MODULE_PATH || exit 1
+rm -fr "${MODULE_PATH:?}/${current_package}" && cd "$MODULE_PATH" || exit 1
 
 ### packages outside slackware repository
 
@@ -109,6 +110,7 @@ for package in \
 	audacious \
 	lightdm \
 	extra-cmake-modules \
+	plasma-wayland-protocols \
 	libfm-extra \
 	menu-cache \
 	polkit-qt6-1 \
@@ -136,7 +138,6 @@ done
 for package in \
 	muparser \
 	layer-shell-qt6 \
-	plasma-wayland-protocols \
 	libstatgrab \
 ; do
 bash $SCRIPT_PATH/deps/${package}/${package}.SlackBuild || exit 1

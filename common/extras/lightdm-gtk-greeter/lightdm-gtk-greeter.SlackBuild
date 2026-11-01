@@ -15,24 +15,9 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 if ! which xdt-csource > /dev/null 2>&1; then
-	DEVTOOLS=xfce4-dev-tools
-	DEVTOOLSVERSION=$(curl -s https://gitlab.xfce.org/xfce/${DEVTOOLS}/-/tags?format=atom | grep -oPm 20 '(?<= <title>)[^<]+' | grep -v pre | grep -v 4.21 | sort -Vr | head -1)
-	wget https://gitlab.xfce.org/xfce/${DEVTOOLS}/-/archive/${DEVTOOLSVERSION}/${DEVTOOLS}-${DEVTOOLSVERSION}.tar.gz
-
-	tar xf $DEVTOOLS-$DEVTOOLSVERSION.tar.?z*
-	cd $DEVTOOLS-$DEVTOOLSVERSION
-
-	CFLAGS="$GCC_CFLAGS" \
-	./autogen.sh \
-		--prefix=/usr \
-		--libdir=/usr/lib${SYSTEM_BITS} \
-		--sysconfdir=/etc \
-		--disable-static \
-		--disable-debug \
-		--build=$ARCH-porteux-linux
-
-	make -j${NUMBER_THREADS} install
-
+	bash $CWD/../../deps/xfce4-dev-tools/xfce4-dev-tools.SlackBuild
+	installpkg $MODULE_PATH/packages/xfce4-dev-tools-[0-9]*.txz
+	rm -fr $MODULE_PATH/packages/xfce4-dev-tools-[0-9]*.txz $MODULE_PATH/xfce4-dev-tools
 	cd $TMP
 fi
 

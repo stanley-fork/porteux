@@ -2,7 +2,7 @@
 
 MODULE_NAME="002-xtra"
 
-source "$PWD/../builder-utils/set-flags.sh"
+source "$(dirname "$0")/../builder-utils/set-flags.sh"
 
 set_flags "$MODULE_NAME"
 
@@ -25,7 +25,7 @@ bash $SCRIPT_PATH/download-packages.sh || exit 1
 
 ### packages outside slackware repository
 
-installpkg $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
+[ ! -f /usr/bin/clang ] && { installpkg $MODULE_PATH/packages/llvm*.txz || exit 1; }
 rm $MODULE_PATH/packages/llvm*.txz > /dev/null 2>&1
 
 # required by libplacebo
@@ -112,7 +112,7 @@ rm usr/share/applications/mimeinfo.cache
 } >/dev/null 2>&1
 
 strip_clean
-strip_hard_all --exceptions='libluajit*,transmission-gtk'
+strip_hard_all 'libluajit*' 'transmission-gtk'
 
 ### copy cache files
 
